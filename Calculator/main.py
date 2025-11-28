@@ -20,6 +20,9 @@ def main():
     font = pygame.font.SysFont(None, 40)
     display = pygame.display.set_mode((500,700))
 
+    # Adding a variable called current input
+    current_input = ""
+
     # making the display result screen and more or
     # less like the seeing the number
     display_result = pygame.Rect(25,25,450,100)
@@ -49,6 +52,9 @@ def main():
     button_times = pygame.Rect(325,380,60,180)
     button_divide = pygame.Rect(400,380,60,180)
     button_equals = pygame.Rect(325,580,135,60)
+
+    # button clear
+    button_clear = pygame.Rect(25, 135, 80, 40)
 
     # rendering the text
     text_surface1 = font.render("1", True, (0,0,0))
@@ -102,6 +108,9 @@ def main():
     text_surface_equals = font.render("=", True, (0, 0, 0))
     text_rect_equals = text_surface_equals.get_rect(center=button_equals.center)
 
+    text_surface_clear = font.render("C", True, (0, 0, 0))
+    text_rect_clear = text_surface_clear.get_rect(center=button_clear.center)
+
     while True:
 
         for event in pygame.event.get():
@@ -110,56 +119,64 @@ def main():
                 pygame.quit()
                 sys.exit()
 
+            if event.type == MOUSEBUTTONDOWN and button_clear.collidepoint(event.pos):
+                current_input = ""
+                print("CLEAR")
+
             if event.type == MOUSEBUTTONDOWN and button1.collidepoint(event.pos):
-                print ("1 was clicked")
+                current_input += "1"
 
             if event.type == MOUSEBUTTONDOWN and button2.collidepoint(event.pos):
-                print("2 was clicked")
+                current_input += "2"
 
             if event.type == MOUSEBUTTONDOWN and button3.collidepoint(event.pos):
-                print("3 was clicked")
+                current_input += "3"
 
             if event.type == MOUSEBUTTONDOWN and button4.collidepoint(event.pos):
-                print("4 was clicked")
+                current_input += "4"
 
             if event.type == MOUSEBUTTONDOWN and button5.collidepoint(event.pos):
-                print("5 was clicked")
+                current_input += "5"
 
             if event.type == MOUSEBUTTONDOWN and button6.collidepoint(event.pos):
-                print("6 was clicked")
+                current_input += "6"
 
             if event.type == MOUSEBUTTONDOWN and button7.collidepoint(event.pos):
-                print("7 was clicked")
+                current_input += "7"
 
             if event.type == MOUSEBUTTONDOWN and button8.collidepoint(event.pos):
-                print("8 was clicked")
+                current_input += "8"
 
             if event.type == MOUSEBUTTONDOWN and button9.collidepoint(event.pos):
-                print("9 was clicked")
+                current_input += "9"
 
             if event.type == MOUSEBUTTONDOWN and button0.collidepoint(event.pos):
-                print("0 was clicked")
+                current_input += "0"
 
             if event.type == MOUSEBUTTONDOWN and button00.collidepoint(event.pos):
-                print("00 was clicked")
+                current_input += "00"
 
             if event.type == MOUSEBUTTONDOWN and button000.collidepoint(event.pos):
-                print("000 was clicked")
+                current_input += "000"
 
             if event.type == MOUSEBUTTONDOWN and button_plus.collidepoint(event.pos):
-                print("+ was clicked")
+                current_input += "+"
 
             if event.type == MOUSEBUTTONDOWN and button_minus.collidepoint(event.pos):
-                print("- was clicked")
+                current_input += "-"
 
             if event.type == MOUSEBUTTONDOWN and button_times.collidepoint(event.pos):
-                print("* was clicked")
+                current_input += "*"
 
             if event.type == MOUSEBUTTONDOWN and button_divide.collidepoint(event.pos):
-                print("/ was clicked")
+                current_input += "/"
 
             if event.type == MOUSEBUTTONDOWN and button_equals.collidepoint(event.pos):
-                print("= was clicked")
+
+                try:
+                    current_input = str(eval(current_input))
+                except:
+                    current_input = "ERROR"
 
         display.fill((255, 255, 255))
 
@@ -216,6 +233,13 @@ def main():
         display.blit(text_surface_times,text_rect_times)
         display.blit(text_surface_divide,text_rect_divide)
         display.blit(text_surface_equals,text_rect_equals)
+
+        # Displaying the numbers in the display result
+        display_text = font.render(current_input, True, (0, 0, 0))
+        display.blit(display_text, (display_result.x + 20, display_result.y + 30))
+
+        pygame.draw.rect(display, display_result_color, button_clear)
+        display.blit(text_surface_clear, text_rect_clear)
 
         pygame.display.set_caption("CALCULATOR  ")
         pygame.display.update()
