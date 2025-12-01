@@ -5,14 +5,14 @@ PONG GAME — TO-DO LIST
 TODO:
     📌 STAGE 1 — BASE SETUP
         - Create the main game window (size, caption, FPS) [DONE]
-        - Initialize Pygame, Clock(), and delta time (dt) 
+        - Initialize Pygame, Clock(), and delta time (dt) [DONE]
         - Create the game loop structure (running = True) [DONE]
         - Clear screen + update display every frame [DONE]
 
     📌 STAGE 2 — OBJECT CREATION
-        - Create paddle rectangles (left & right)
-        - Create ball rectangle
-        - Add variables for paddle speed (px/s)
+        - Create paddle rectangles (left & right) [DONE]
+        - Create ball rectangle [DONE]
+        - Add variables for paddle speed (px/s) [DONE]
         - Add variables for ball speed (px/s) + direction vector
 
     📌 STAGE 3 — PADDLE MOVEMENT
@@ -71,15 +71,21 @@ def main():
 
     # clock
     clock = Clock()
-    FPS = 120
+    FPS = 60
 
     # player object
     PLAYER_OBJ = pygame.Rect(200,600,200,25)
-    PLAYER_speed_per_second = 1000
+    PLAYER_speed_per_second = 500
     PLAYER_pos_x = float(PLAYER_OBJ.x)
 
     # Ball object
     BALL_OBJ = pygame.Rect(200,100,30,30)
+
+    BALL_SPEED_X = 300.0
+    BALL_SPEED_Y = 200.0
+
+    BALL_POS_X = float(BALL_OBJ.x)
+    BALL_POS_Y = float(BALL_OBJ.y)
 
     # color
     PLAYER_COLOR = (0,0,0)
@@ -121,7 +127,6 @@ def main():
 
 
         # movement logic
-
         if M_left:
             PLAYER_pos_x -= PLAYER_speed_per_second * dt
             PLAYER_OBJ.x = int(PLAYER_pos_x)
@@ -138,15 +143,49 @@ def main():
             PLAYER_OBJ.right = 600
             PLAYER_pos_x = float(PLAYER_OBJ.x)
 
+        # dropping ball logic & Update position using delta time
+        BALL_POS_X += BALL_SPEED_X * dt
+        BALL_POS_Y += BALL_SPEED_Y * dt
+
+        # Update the rect
+        BALL_OBJ.x = int(BALL_POS_X)
+        BALL_OBJ.y = int(BALL_POS_Y)
+
+        if BALL_OBJ.top <= 0:
+
+            BALL_SPEED_Y *= -1
+            BALL_OBJ.top = 0
+
+            BALL_POS_Y = float(BALL_OBJ.y)
+
+        if BALL_OBJ.left <= 0 or BALL_OBJ.right >= WINDOW_WIDTH:
+
+            BALL_SPEED_X *= -1
+            BALL_POS_X = float(BALL_OBJ.x)
+
+        # Collision detection
+        if BALL_OBJ.colliderect(PLAYER_OBJ):
+            BALL_SPEED_Y *= -1
+            BALL_POS_Y = float(PLAYER_OBJ.top - BALL_OBJ.height)
+
+        # resets the ball after it passes the paddle
+        if BALL_OBJ.bottom >= WINDOW_HEIGHT:
+
+            BALL_POS_X = WINDOW_WIDTH / 2
+            BALL_POS_Y = 100
+            BALL_SPEED_Y = abs(BALL_SPEED_Y)
+
         DISPLAY.fill((255,255,255))
 
         # Rendering FPS
         text_surface = font.render(f"FPS: {int(clock.get_fps())}", True, (0, 0, 0))
         DISPLAY.blit(text_surface, (10,10))
 
+        # Rendering the player and the ball
         pygame.draw.rect(DISPLAY,PLAYER_COLOR, PLAYER_OBJ)
         pygame.draw.rect(DISPLAY,BALL_COLOR, BALL_OBJ)
 
+        # updating the pygame
         pygame.display.update()
 
 
