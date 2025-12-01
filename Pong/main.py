@@ -61,6 +61,9 @@ def main():
     # initialize the pygame
     pygame.init()
 
+    # font
+    font = pygame.font.SysFont(None, 32)
+
     # display
     WINDOW_WIDTH = 600
     WINDOW_HEIGHT = 700
@@ -71,10 +74,21 @@ def main():
     FPS = 60
 
     # player object
-    PLAYER_OBJ = pygame.Rect(200,500,200,25)
+    PLAYER_OBJ = pygame.Rect(200,600,200,25)
 
     # color
     PLAYER_COLOR = (0,0,0)
+
+    # text render
+    text_surface = font.render(f"FPS: {int(clock.get_fps())}", True, (0,0,0))
+    text_rect = text_surface.get_rect()
+
+    # movements
+    M_left = False
+    M_right = False
+
+    # movement speed
+    MOVEMENT_SPEED = 1
 
     # game loop
     while True:
@@ -86,9 +100,42 @@ def main():
                 pygame.quit()
                 sys.exit()
 
+            # down
+            if event.type == KEYDOWN:
+
+                if event.key == K_LEFT or event.key == K_a:
+                    M_left = True
+
+                if event.key == K_RIGHT or event.key == K_d:
+                    M_right = True
+
+            # up
+            if event.type == KEYUP:
+
+                if event.key == K_LEFT or event.key == K_a:
+                    M_left = False
+
+                if event.key == K_RIGHT or event.key == K_d:
+                    M_right = False
+
+
+        # movement logic
+
+        if M_left:
+            PLAYER_OBJ.x -= MOVEMENT_SPEED
+
+        if M_right:
+            PLAYER_OBJ.x += MOVEMENT_SPEED
+
+        if PLAYER_OBJ.left < 0:
+            PLAYER_OBJ.left = 0
+
         DISPLAY.fill((255,255,255))
+        DISPLAY.blit(text_surface, text_rect)
+
         pygame.draw.rect(DISPLAY,PLAYER_COLOR, PLAYER_OBJ)
         pygame.display.update()
+
 
 
 if __name__ == "__main__":
