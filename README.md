@@ -8,19 +8,19 @@ My goal is to master the fundamentals of game architecture understanding the gam
 
 This roadmap is structured to introduce one major mechanic at a time. It starts with simple rebounding physics in Pong, moves through array manipulation in Snake, and culminates in complex mathematical rendering with the Raycaster.
 
-| # | Game Project | Status | Key Concepts & Goals |
-|:-:| :--- | :--- | :--- |
-| 0 | [**Calculator**](./Calculator) | ✅ Done | **GUI Fundamentals**: Creating buttons, handling Mouse Input, and logic state management. |
-| 1 | [**Pong**](./01_pong) | 🔴 Todo | Basic collision detection, understanding the Game Loop, and drawing `Rect` objects. |
-| 2 | [**Snake**](./02_snake) | 🔴 Todo | Manipulating `Lists`, handling Grid movement, and random item generation. |
-| 3 | [**Breakout**](./03_breakout) | 🔴 Todo | Advanced physics reflection, managing object state, and score tracking. |
-| 4 | [**Space Invaders**](./04_space_invaders) | 🔴 Todo | Handling projectiles, implementing Enemy AI movement patterns, and collision groups. |
-| 5 | [**Flappy Bird**](./05_flappy_bird) | 🔴 Todo | Simulating Gravity, creating Infinite Scrolling backgrounds, and persistent high scores. |
-| 6 | [**Dino Run**](./06_dino_run) | 🔴 Todo | Sprite Animation cycles, precise Hitboxes, and game speed scaling over time. |
-| 7 | [**Tetris**](./07_tetris) | 🔴 Todo | Logic for 2D Arrays (Matrices), shape Rotation algorithms, and row clearing. |
-| 8 | [**Platformer**](./08_platformer) | 🔴 Todo | Implementing Gravity/Friction, side-scrolling Camera, and loading Levels from files. |
-| 9 | [**Top-Down RPG**](./09_rpg) | 🔴 Todo | Using Tilemaps for world building, Inventory systems, and A* Pathfinding. |
-| 10 | [**Raycaster 3D**](./10_raycaster) | 🔴 Todo | Utilizing Trigonometry for pseudo-3D rendering and raycasting engines. |
+| # | Game Project | Status      | Key Concepts & Goals |
+|:-:| :--- |:------------| :--- |
+| 0 | [**Calculator**](./Calculator) | ✅ Done      | **GUI Fundamentals**: Creating buttons, handling Mouse Input, and logic state management. |
+| 1 | [**Pong**](./01_pong) | 🟨 On-going | Basic collision detection, understanding the Game Loop, and drawing `Rect` objects. |
+| 2 | [**Snake**](./02_snake) | 🔴 Todo     | Manipulating `Lists`, handling Grid movement, and random item generation. |
+| 3 | [**Breakout**](./03_breakout) | 🔴 Todo     | Advanced physics reflection, managing object state, and score tracking. |
+| 4 | [**Space Invaders**](./04_space_invaders) | 🔴 Todo     | Handling projectiles, implementing Enemy AI movement patterns, and collision groups. |
+| 5 | [**Flappy Bird**](./05_flappy_bird) | 🔴 Todo     | Simulating Gravity, creating Infinite Scrolling backgrounds, and persistent high scores. |
+| 6 | [**Dino Run**](./06_dino_run) | 🔴 Todo     | Sprite Animation cycles, precise Hitboxes, and game speed scaling over time. |
+| 7 | [**Tetris**](./07_tetris) | 🔴 Todo     | Logic for 2D Arrays (Matrices), shape Rotation algorithms, and row clearing. |
+| 8 | [**Platformer**](./08_platformer) | 🔴 Todo     | Implementing Gravity/Friction, side-scrolling Camera, and loading Levels from files. |
+| 9 | [**Top-Down RPG**](./09_rpg) | 🔴 Todo     | Using Tilemaps for world building, Inventory systems, and A* Pathfinding. |
+| 10 | [**Raycaster 3D**](./10_raycaster) | 🔴 Todo     | Utilizing Trigonometry for pseudo-3D rendering and raycasting engines. |
 
 ## 🛠️ Tech Stack
 
