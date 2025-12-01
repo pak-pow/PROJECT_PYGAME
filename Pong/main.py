@@ -71,27 +71,28 @@ def main():
 
     # clock
     clock = Clock()
-    FPS = 60
+    FPS = 120
 
     # player object
     PLAYER_OBJ = pygame.Rect(200,600,200,25)
+    PLAYER_speed_per_second = 1000
+    PLAYER_pos_x = float(PLAYER_OBJ.x)
+
+    # Ball object
+    BALL_OBJ = pygame.Rect(200,100,30,30)
 
     # color
     PLAYER_COLOR = (0,0,0)
-
-    # text render
-    text_surface = font.render(f"FPS: {int(clock.get_fps())}", True, (0,0,0))
-    text_rect = text_surface.get_rect()
+    BALL_COLOR = (0,0,0)
 
     # movements
     M_left = False
     M_right = False
 
-    # movement speed
-    MOVEMENT_SPEED = 1
-
     # game loop
     while True:
+
+        dt = clock.tick(FPS) / 1000
 
         for event in pygame.event.get():
 
@@ -122,18 +123,30 @@ def main():
         # movement logic
 
         if M_left:
-            PLAYER_OBJ.x -= MOVEMENT_SPEED
+            PLAYER_pos_x -= PLAYER_speed_per_second * dt
+            PLAYER_OBJ.x = int(PLAYER_pos_x)
 
         if M_right:
-            PLAYER_OBJ.x += MOVEMENT_SPEED
+            PLAYER_pos_x += PLAYER_speed_per_second * dt
+            PLAYER_OBJ.x = int(PLAYER_pos_x)
 
         if PLAYER_OBJ.left < 0:
             PLAYER_OBJ.left = 0
+            PLAYER_pos_x = float(PLAYER_OBJ.x)
+
+        if PLAYER_OBJ.right > 600:
+            PLAYER_OBJ.right = 600
+            PLAYER_pos_x = float(PLAYER_OBJ.x)
 
         DISPLAY.fill((255,255,255))
-        DISPLAY.blit(text_surface, text_rect)
+
+        # Rendering FPS
+        text_surface = font.render(f"FPS: {int(clock.get_fps())}", True, (0, 0, 0))
+        DISPLAY.blit(text_surface, (10,10))
 
         pygame.draw.rect(DISPLAY,PLAYER_COLOR, PLAYER_OBJ)
+        pygame.draw.rect(DISPLAY,BALL_COLOR, BALL_OBJ)
+
         pygame.display.update()
 
 
