@@ -84,7 +84,7 @@ def main():
     BALL_OBJ = pygame.Rect(200,100,30,30)
 
     BALL_SPEED_X = 0.0
-    BALL_SPEED_Y = 300.0
+    BALL_SPEED_Y = 500.0
 
     BALL_POS_X = float(BALL_OBJ.x)
     BALL_POS_Y = float(BALL_OBJ.y)
@@ -160,28 +160,52 @@ def main():
 
             BALL_POS_Y = float(BALL_OBJ.y)
 
-        if BALL_OBJ.left <= 0 or BALL_OBJ.right >= WINDOW_WIDTH:
+        if BALL_OBJ.left <= 0:
 
+            BALL_OBJ.left = 0
             BALL_SPEED_X *= -1
-            BALL_POS_X = float(BALL_OBJ.x)
+
+        elif BALL_OBJ.right >= WINDOW_WIDTH:
+
+            BALL_OBJ.right = WINDOW_WIDTH
+            BALL_SPEED_X *= -1
+
+            # Update float after snapping
+        BALL_POS_X = float(BALL_OBJ.x)
 
         # Collision detection
         if BALL_OBJ.colliderect(PLAYER_OBJ):
             BALL_SPEED_Y *= -1
-            BALL_POS_Y = float(PLAYER_OBJ.top - BALL_OBJ.height)
+            BALL_OBJ.bottom = PLAYER_OBJ.top
+            BALL_POS_Y = float(BALL_OBJ.y)
+
+            # Calculate offset (center of ball vs center of paddle)
+            offset = (BALL_OBJ.centerx - PLAYER_OBJ.centerx)
+
+            # Add that offset to the X speed (steer the ball!)
+            BALL_SPEED_X += offset * 5
 
             if not ball_started:
                 BALL_SPEED_X = random.choice([-200.0,-150.0,150.0,200.0])
                 ball_started = True
 
 
-        # resets the ball after it passes the paddle
+        # --- BALL FALLS BELOW SCREEN (RESET) ---
         if BALL_OBJ.bottom >= WINDOW_HEIGHT:
 
-            BALL_POS_X = WINDOW_WIDTH / 2
-            BALL_POS_Y = 100
-            BALL_SPEED_Y = abs(BALL_SPEED_Y)
+            # RESET everything
+            BALL_OBJ.x = WINDOW_WIDTH // 2
+            BALL_OBJ.y = 100
 
+            BALL_POS_X = float(BALL_OBJ.x)
+            BALL_POS_Y = float(BALL_OBJ.y)
+
+            BALL_SPEED_X = 0       # straight down again
+            BALL_SPEED_Y = 400.0
+            ball_started = False
+
+
+        # RENDER
         DISPLAY.fill((255,255,255))
 
         # Rendering FPS
