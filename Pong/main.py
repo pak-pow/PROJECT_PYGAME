@@ -53,6 +53,7 @@ TODO:
 import pygame
 import sys
 import pygame.font
+import random
 from pygame.locals import *
 from pygame.time import Clock
 
@@ -79,10 +80,11 @@ def main():
     PLAYER_pos_x = float(PLAYER_OBJ.x)
 
     # Ball object
+    ball_started = False
     BALL_OBJ = pygame.Rect(200,100,30,30)
 
-    BALL_SPEED_X = 300.0
-    BALL_SPEED_Y = 200.0
+    BALL_SPEED_X = 0.0
+    BALL_SPEED_Y = 300.0
 
     BALL_POS_X = float(BALL_OBJ.x)
     BALL_POS_Y = float(BALL_OBJ.y)
@@ -167,6 +169,11 @@ def main():
         if BALL_OBJ.colliderect(PLAYER_OBJ):
             BALL_SPEED_Y *= -1
             BALL_POS_Y = float(PLAYER_OBJ.top - BALL_OBJ.height)
+
+            if not ball_started:
+                BALL_SPEED_X = random.choice([-200.0,-150.0,150.0,200.0])
+                ball_started = True
+
 
         # resets the ball after it passes the paddle
         if BALL_OBJ.bottom >= WINDOW_HEIGHT:
