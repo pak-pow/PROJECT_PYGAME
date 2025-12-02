@@ -5,6 +5,7 @@ DAY 5 - learning how to use sprites
 
 import pygame
 import sys
+import random
 
 from pygame.sprite import Sprite
 from pygame.time import Clock
@@ -50,8 +51,10 @@ class Player(Sprite):
 
 class Ball(Sprite):
 
-    def __init__(self):
+    def __init__(self, player):
         super().__init__()
+
+        self.player = player
 
         self.image = pygame.Surface((20,20))
         self.image.fill((0,255,0))
@@ -59,8 +62,8 @@ class Ball(Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = (300,200)
 
-        self.VELOCITY_X = 200
-        self.VELOCITY_Y = 200
+        self.VELOCITY_X = 0
+        self.VELOCITY_Y = 400
 
         self.BALL_POSS_X = float(self.rect.x)
         self.BALL_POSS_Y = float(self.rect.y)
@@ -69,6 +72,23 @@ class Ball(Sprite):
 
         self.BALL_POSS_X += self.VELOCITY_X * dt
         self.BALL_POSS_Y += self.VELOCITY_Y * dt
+
+        if self.rect.colliderect(self.player.rect):
+
+            # bounce upward
+            self.VELOCITY_Y *= -1
+
+            # place the ball on top of the paddle (avoid sticking)
+            self.rect.bottom = self.player.rect.top
+            self.BALL_POSS_Y = float(self.rect.y)
+
+            # steering based on where the ball hits the paddle
+            offset = (self.rect.centerx - self.player.rect.centerx)
+            self.VELOCITY_X += offset * 5
+
+            # if ball was falling straight — give it a starting random direction
+            if self.VELOCITY_X == 0:
+                self.VELOCITY_X = random.choice([-200, -150, 150, 200])
 
         if self.BALL_POSS_X <= 0 or self.BALL_POSS_X >= 580:
             self.VELOCITY_X *= -1
@@ -93,7 +113,7 @@ def main():
     DISPLAY_COLOR = (255,255,255)
 
     player = Player()
-    ball = Ball()
+    ball = Ball(player)
 
     all_sprite = pygame.sprite.Group()
     all_sprite.add(player)
