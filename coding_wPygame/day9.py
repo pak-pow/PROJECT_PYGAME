@@ -23,15 +23,14 @@ class Main:
 
     GRAVITY = 2000
     JUMP_STRENGTH = -800
-    MOVE_SPEED = 400
+    MOVE_SPEED = 800
     FLOOR_Y = 600
+    DISPLAY_WIDTH = 800
+    DISPLAY_HEIGHT = 600
 
     def __init__(self):
 
         pygame.init()
-
-        self.DISPLAY_WIDTH = 800
-        self.DISPLAY_HEIGHT = 600
         self.DISPLAY = pygame.display.set_mode((self.DISPLAY_WIDTH, self.DISPLAY_HEIGHT))
 
         self.CLOCK = Clock()
@@ -78,11 +77,14 @@ class Player(Sprite):
         self.velocity = Vector2(0,0)
 
         self.on_ground = True
+        self.jump_count = 0
+        self.max_jump = 2
 
     def jump(self):
-        if self.on_ground:
+
+        if self.jump_count < self.max_jump:
             self.velocity.y = Main.JUMP_STRENGTH
-            self.on_ground = False
+            self.jump_count += 1
 
     def update(self, dt):
 
@@ -100,13 +102,21 @@ class Player(Sprite):
         self.pos += self.velocity * dt
 
         if self.pos.y >= Main.FLOOR_Y:
-
             self.pos.y = Main.FLOOR_Y
             self.velocity.y = 0
             self.on_ground = True
+            self.jump_count = 0
 
         else:
             self.on_ground = False
+
+        if self.pos.x <= 25:
+            self.pos.x = 25
+            self.jump_count = 0
+
+        if self.pos.x >= Main.DISPLAY_WIDTH - 25:
+            self.pos.x = Main.DISPLAY_WIDTH - 25
+            self.jump_count = 0
 
         self.rect.midbottom = round(self.pos)
 
