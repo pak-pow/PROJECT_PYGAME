@@ -24,7 +24,7 @@ class Main:
     GRAVITY = 2000
     JUMP_STRENGTH = -800
     MOVE_SPEED = 400
-    FLOOR_Y = 500
+    FLOOR_Y = 600
 
     def __init__(self):
 
@@ -36,6 +36,9 @@ class Main:
 
         self.CLOCK = Clock()
         self.FPS = 60
+
+        self.player = Player()
+        self.all_sprites = pygame.sprite.Group(self.player)
 
     def run(self):
 
@@ -49,7 +52,15 @@ class Main:
                     pygame.quit()
                     sys.exit()
 
+                if event.type == KEYDOWN:
+                    if event.key == K_SPACE:
+                        self.player.jump()
+
+            self.all_sprites.update(dt)
+
             self.DISPLAY.fill(self.UI_BLACK)
+            self.all_sprites.draw(self.DISPLAY)
+
             pygame.display.set_caption("DAY9: GRAVITY")
             pygame.display.update()
 
@@ -62,10 +73,42 @@ class Player(Sprite):
         self.image = pygame.Surface((50,50))
         self.image.fill(Main.UI_WHITE)
         self.rect = self.image.get_rect(midbottom = (400, Main.FLOOR_Y))
-        self.pos = Vector2(0,0)
+
+        self.pos = Vector2(400, Main.FLOOR_Y)
+        self.velocity = Vector2(0,0)
+
+        self.on_ground = True
+
+    def jump(self):
+        if self.on_ground:
+            self.velocity.y = Main.JUMP_STRENGTH
+            self.on_ground = False
 
     def update(self, dt):
-        pass
+
+        keys = pygame.key.get_pressed()
+
+        self.velocity.x = 0
+
+        if keys[K_LEFT]:
+            self.velocity.x = -Main.MOVE_SPEED
+
+        if keys[K_RIGHT]:
+            self.velocity.x = Main.MOVE_SPEED
+
+        self.velocity.y += Main.GRAVITY * dt
+        self.pos += self.velocity * dt
+
+        if self.pos.y >= Main.FLOOR_Y:
+
+            self.pos.y = Main.FLOOR_Y
+            self.velocity.y = 0
+            self.on_ground = True
+
+        else:
+            self.on_ground = False
+
+        self.rect.midbottom = round(self.pos)
 
 if __name__ == "__main__":
     app = Main()
