@@ -5,6 +5,8 @@ import pygame
 from config import *
 from utils import clamp, check_grid_collision, has_line_of_sight, get_path_bfs, distance
 
+
+# --- BULLET CLASS ---
 class Bullet:
     def __init__(self, wx, wy, vx, vy, speed, damage, pierce_count, color, owner_id):
         self.wx = wx
@@ -33,6 +35,7 @@ class Bullet:
         pygame.draw.circle(surf, self.color, (sx, sy), r)
 
 
+# --- GRENADE CLASS ---
 class Grenade:
     def __init__(self, start_x, start_y, target_x, target_y):
         self.x = start_x
@@ -87,6 +90,7 @@ class Grenade:
             pygame.draw.circle(surf, (255, 255, 255), (sx, sy - z_offset), 6 * cam.zoom)
 
 
+# --- BASE ENTITY ---
 class Entity:
     def __init__(self, wx, wy):
         self.wx = wx
@@ -161,6 +165,7 @@ class Entity:
         pass
 
 
+# --- ENERGY ORB ---
 class EnergyOrb(Entity):
     def __init__(self, wx, wy):
         super().__init__(wx, wy)
@@ -185,6 +190,7 @@ class EnergyOrb(Entity):
         pygame.draw.circle(surf, (255, 255, 255), (sx, sy - 10 - bob), 4 * cam.zoom)
 
 
+# --- WALL BLOCK ---
 class WallBlock(Entity):
     def __init__(self, wx, wy, color_top, color_side):
         super().__init__(wx, wy)
@@ -236,8 +242,7 @@ class WallBlock(Entity):
         pygame.draw.polygon(surf, (0, 0, 0), top_corners, 1)
 
 
-# --- START ENEMY UPDATES ---
-
+# --- BASE ENEMY ---
 class Enemy(Entity):
     def __init__(self, wx, wy, level, vm):
         super().__init__(wx, wy)
@@ -268,22 +273,19 @@ class Enemy(Entity):
             self.flash_timer -= dt
 
         if abs(self.knockback_x) + abs(self.knockback_y) < 2.0:
-            # AI Logic: Prioritize direct movement if possible
             dist_to_player = distance(self.wx, self.wy, player.wx, player.wy)
 
             # Simple Line of Sight Check
             can_see = has_line_of_sight(self.wx, self.wy, player.wx, player.wy, grid)
 
             if can_see:
-                self.path = []  # Clear path if we see player
+                self.path = []
                 dx = player.wx - self.wx
                 dy = player.wy - self.wy
                 if dist_to_player > 0.1:
                     self.move_towards(dx, dy, dist_to_player, dt, grid)
             else:
-                # Pathfinding fallback
                 self.path_timer -= dt
-                # FIX: Faster pathfinding updates (0.2s instead of 0.5s)
                 if self.path_timer <= 0:
                     self.path_timer = 0.2
                     if dist_to_player > 1.0:
@@ -296,7 +298,6 @@ class Enemy(Entity):
                     next_node = self.path[0]
                     tx, ty = next_node[0] + 0.5, next_node[1] + 0.5
 
-                    # If we reached the node, pop it
                     if distance(self.wx, self.wy, tx, ty) < 0.2:
                         self.path.pop(0)
                     else:
@@ -309,13 +310,9 @@ class Enemy(Entity):
                     self.move_towards(dx, dy, dist, dt, grid)
 
     def move_towards(self, dx, dy, dist, dt, grid):
-        # FIX: Aggressive sliding logic is handled by check_wall_collision
-        # We ensure the vector is normalized properly.
         move_step = self.speed * dt
         vx = (dx / dist) * move_step
         vy = (dy / dist) * move_step
-
-        # We call this, which inherently handles "sliding" by cancelling X or Y individually
         self.check_wall_collision(vx, vy, grid)
 
     def draw(self, surf, cam):
@@ -333,6 +330,7 @@ class Enemy(Entity):
         pygame.draw.rect(surf, (50, 200, 50), (sx - w // 2 + 1, sy + 1, int((w - 2) * pct), h - 2))
 
 
+# --- ORB ENEMY ---
 class OrbEnemy(Enemy):
     def __init__(self, wx, wy, level, vm):
         super().__init__(wx, wy, level, vm)
@@ -351,6 +349,7 @@ class OrbEnemy(Enemy):
         self.draw_hp(surf, sx, sy - r * 2.5, cam.zoom)
 
 
+# --- BLOCK ENEMY ---
 class BlockEnemy(Enemy):
     def __init__(self, wx, wy, level, vm):
         super().__init__(wx, wy, level, vm)
@@ -427,6 +426,7 @@ class BlockEnemy(Enemy):
         self.draw_hp(surf, sx, draw_y - s - 10, cam.zoom)
 
 
+# --- SPIKE ENEMY (TRIANGLE) - FIX APPLIED HERE ---
 class SpikeEnemy(Enemy):
     def __init__(self, wx, wy, level, vm):
         super().__init__(wx, wy, level, vm)
@@ -468,27 +468,22 @@ class SpikeEnemy(Enemy):
             self.dash_timer -= dt
             self.ghost_timer -= dt
 
-            # FIX: VISUALS - BIG GHOSTS AND AIR
             if self.ghost_timer <= 0:
-                # Big Ghost (Radius 0.8 instead of 0.4)
                 self.vm.add_ghost(self.wx, self.wy, (255, 255, 100), 0.8)
                 self.ghost_timer = 0.05
 
-            # Add "Air" Wind Particles
+            # Wind Particles
             sx, sy = cam.world_to_screen(self.wx, self.wy)
-            # Create a particle moving opposite to dash
-            opp_vx = -self.move_dir[0] * 50
-            opp_vy = -self.move_dir[1] * 50
-            # Manually adding a specific particle to VM for wind effect
-            # x, y, color, speed, lifetime, size
             self.vm.add_particle(sx + random.randint(-10, 10), sy + random.randint(-10, 10), (200, 255, 255))
 
             if self.dash_timer <= 0:
                 self.dash_active = False
                 self.speed = self.base_speed
-                self.damage_to_player = 10  # Reset damage
+                self.damage_to_player = 10
+                # FIX: RESET MOVE TIMER SO IT DOESN'T GET STUCK MOVING IN ONE DIRECTION
+                self.move_timer = 0
 
-        # Movement
+                # Movement
         if self.dash_active:
             # Force movement in dash direction
             vx = self.move_dir[0] * self.speed * dt
@@ -497,14 +492,13 @@ class SpikeEnemy(Enemy):
             self.physics_update(dt, grid)
         else:
             # Normal movement
-            self.move_towards(0, 0, 0, dt, grid)  # Logic inside move_towards handles random drift
+            self.move_towards(0, 0, 0, dt, grid)
             self.physics_update(dt, grid)
 
     def move_towards(self, dx, dy, dist, dt, grid):
         self.move_timer -= dt
         if self.move_timer <= 0:
             self.move_timer = random.uniform(0.3, 0.8)
-            # Random jittery movement
             angle = random.uniform(0, 6.28)
             self.move_dir = (math.cos(angle), math.sin(angle))
 
@@ -515,7 +509,7 @@ class SpikeEnemy(Enemy):
     def draw(self, surf, cam):
         sx, sy = cam.world_to_screen(self.wx, self.wy)
         col = (255, 255, 255) if self.flash_timer > 0 else self.color
-        if self.dash_active: col = (255, 255, 200)  # Brighter when dashing
+        if self.dash_active: col = (255, 255, 200)
 
         h = 40 * cam.zoom
         w = 15 * cam.zoom
@@ -526,10 +520,10 @@ class SpikeEnemy(Enemy):
         self.draw_hp(surf, sx, sy - h - 10, cam.zoom)
 
 
+# --- BOSS - FIX APPLIED HERE ---
 class HexBoss(Enemy):
     def __init__(self, wx, wy, level, vm):
         super().__init__(wx, wy, level, vm)
-        # BOSS STATS - MUCH STRONGER
         self.max_health = 2000 + (level * 500)
         self.health = self.max_health
         self.speed = 1.0 + (level * 0.05)
@@ -543,57 +537,65 @@ class HexBoss(Enemy):
         self.burst_count = 0
         self.pattern_timer = 0
         self.current_stage = 1
+        self.phase = "IDLE"
 
     def update(self, dt, player, grid, bullets, cam):
         super().update(dt, player, grid, bullets, cam)
 
-        # DETERMINE STAGE
         hp_pct = self.health / self.max_health
         if hp_pct > 0.66:
             self.current_stage = 1
-            self.color = (150, 50, 200)  # Purple
+            self.color = (150, 50, 200)
         elif hp_pct > 0.33:
             self.current_stage = 2
-            self.color = (200, 50, 50)  # Reddish
+            self.color = (200, 50, 50)
         else:
             self.current_stage = 3
-            self.color = (50, 0, 0)  # Dark Red (Enraged)
+            self.color = (50, 0, 0)
 
-        # ATTACK LOGIC
         self.shoot_timer -= dt
 
-        if self.shoot_timer <= 0:
-            if self.current_stage == 1:
-                # STAGE 1: Controlled Bursts
-                self.shoot_timer = 1.5
-                self.fire_spread(bullets, player, 3, 0.2)
-
-            elif self.current_stage == 2:
-                # STAGE 2: Spiral + Rapid
+        # FIX: ONLY PICK NEW PATTERN IF IDLE
+        if self.phase == "IDLE" and self.shoot_timer <= 0:
+            # Pick a pattern
+            if random.random() < 0.6:
+                self.phase = "RAPID"
                 self.shoot_timer = 0.1
-                self.pattern_timer += 0.5
-                # Spiral shot
-                angle = self.pattern_timer
+                self.burst_count = 10
+            else:
+                self.phase = "NOVA"
+                self.shoot_timer = 2.0
+
+        if self.phase == "RAPID":
+            if self.shoot_timer <= 0:
+                self.shoot_timer = 0.15
+                self.burst_count -= 1
+
+                dx = player.wx - self.wx
+                dy = player.wy - self.wy
+                angle = math.atan2(dy, dx) + random.uniform(-0.2, 0.2)
                 bx = math.cos(angle)
                 by = math.sin(angle)
-                b = Bullet(self.wx, self.wy, bx, by, 6.0, 15, 0, (200, 100, 255), self.uid)
+
+                b = Bullet(self.wx, self.wy, bx, by, 7.0, 15, 0, (255, 0, 255), self.uid)
+                b.radius = 8
                 bullets.append(b)
 
-                # Occasional direct shot
-                if random.random() < 0.1:
-                    self.fire_spread(bullets, player, 1, 0)
+                if self.burst_count <= 0:
+                    self.phase = "IDLE"
+                    self.shoot_timer = 3.0
 
-            elif self.current_stage == 3:
-                # STAGE 3: ENRAGED (Nova + Shotgun)
-                self.shoot_timer = 0.8
-                # Nova
-                for i in range(8):
-                    ang = (6.28 / 8) * i + self.pattern_timer
-                    b = Bullet(self.wx, self.wy, math.cos(ang), math.sin(ang), 5.0, 20, 0, (255, 0, 0), self.uid)
+        elif self.phase == "NOVA":
+            if self.shoot_timer <= 0:
+                self.phase = "IDLE"
+                self.shoot_timer = 2.5
+                for i in range(12):
+                    angle = (6.28 / 12) * i
+                    bx = math.cos(angle)
+                    by = math.sin(angle)
+                    b = Bullet(self.wx, self.wy, bx, by, 5.0, 20, 0, (200, 100, 255), self.uid)
+                    b.radius = 6
                     bullets.append(b)
-                # Shotgun at player
-                self.fire_spread(bullets, player, 5, 0.5)
-                self.speed = 3.0  # Moves fast now!
 
     def fire_spread(self, bullets, player, count, spread):
         dx = player.wx - self.wx
@@ -611,9 +613,11 @@ class HexBoss(Enemy):
         sx, sy = cam.world_to_screen(self.wx, self.wy)
         col = (255, 255, 255) if self.flash_timer > 0 else self.color
 
+        if self.phase == "NOVA" and int(pygame.time.get_ticks() / 100) % 2 == 0:
+            col = (255, 200, 255)
+
         pts = []
         radius = 40 * cam.zoom
-        # Spin faster in later stages
         spin_speed = 0.1 * self.current_stage
 
         for i in range(6):
@@ -627,7 +631,7 @@ class HexBoss(Enemy):
         self.draw_hp(surf, sx, sy - 80 * cam.zoom, cam.zoom)
 
 
-# --- PLAYER AND DRONE REMAIN THE SAME ---
+# --- DRONE CLASS ---
 class Drone:
     def __init__(self, player, index, total_drones):
         self.player = player
@@ -669,6 +673,7 @@ class Drone:
         pygame.draw.line(surf, (50, 150, 50), (sx, sy - 20 - bob), (sx, sy), 1)
 
 
+# --- PLAYER CLASS ---
 class Player(Entity):
     def __init__(self):
         super().__init__(MAP_W / 2, MAP_H / 2)

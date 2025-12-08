@@ -1,13 +1,12 @@
 # main.py
 """
-ISOMETRIC SHOOTER - TITAN EDITION (EXPANDED v7.6)
+ISOMETRIC SHOOTER - TITAN EDITION (v8.1)
 ================================================================================
 UPDATED: December 8, 2025
 CHANGELOG:
-- Added Drop Shadows for Player and Enemies
-- Reduced Intro Shake (Minimal)
-- Expanded Shotgun/Sniper Ultimates
-- Fixed Ultimate Energy persistence logic
+- FIXED VIGNETTE: Now uses Smooth Gradient Lighting (No more hard edges)
+- Darker, scarier atmosphere
+- Bullets and Explosions cast smooth light
 """
 
 import math
@@ -29,7 +28,7 @@ class Game:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
-        pygame.display.set_caption("Square Up - v7.6")
+        pygame.display.set_caption("Square Up - v8.1 Smooth Lighting")
 
         self.clock = pygame.time.Clock()
 
@@ -42,10 +41,31 @@ class Game:
         self.intro_sub_font = pygame.font.SysFont("Verdana", 30, bold=True)
         self.shop_font = pygame.font.SysFont("Verdana", 30, bold=True)
 
-        self.fog = pygame.Surface((SCREEN_W, SCREEN_H))
-        self.damage_alpha = 0.0
+        # --- LIGHTING SURFACE ---
+        # We create a smooth radial gradient "Texture" once to reuse
+        self.light_radius = 700
+        self.light_surf = self.generate_light_texture(self.light_radius)
 
+        # The darkness layer (No alpha needed for BLEND_MULT)
+        self.fog = pygame.Surface((SCREEN_W, SCREEN_H))
+
+        self.damage_alpha = 0.0
         self.reset_game()
+
+    def generate_light_texture(self, radius):
+        """Generates a smooth white-to-black radial gradient"""
+        surf = pygame.Surface((radius * 2, radius * 2))
+        surf.fill((0, 0, 0))  # Start black
+        center = (radius, radius)
+
+        # Draw concentric circles from dark to light
+        # This creates the smooth "Flashlight" falloff
+        for r in range(radius, 0, -2):
+            # Intensity 0 (edge) to 255 (center)
+            # Using power of 1.5 makes the center hot and edges fade faster
+            intensity = int(255 * ((1 - (r / radius)) ** 1.5))
+            pygame.draw.circle(surf, (intensity, intensity, intensity), center, r)
+        return surf
 
     def reset_game(self):
         self.level = 1
@@ -89,7 +109,6 @@ class Game:
         x1, y = 20, SCREEN_H - 240
         x2, x3, x4 = 250, 480, 710
 
-        # ... [Previous upgrade functions] ...
         def up_dmg(p): p.stats["damage"] *= 1.2
 
         def cost_dmg(): return int(self.player.stats["damage"] * 15), f"Dmg: {self.player.stats['damage']:.1f}"
@@ -111,14 +130,12 @@ class Game:
         def cost_regen(): return int(
             100 * (self.player.stats["hp_regen"] + 1)), f"Regen: {self.player.stats['hp_regen']:.1f}"
 
-        # FIX: HEAL WITH CONDITION
         def heal(p): p.health = min(p.health + 30, p.stats["hp_max"])
 
         def cost_heal(): return 20, f"HP: {int(self.player.health)}"
 
         def can_heal(): return self.player.health < self.player.stats["hp_max"]
 
-        # WEAPONS
         def buy_shotgun(p): p.weapon_type = "shotgun"
 
         def cost_shotgun(): return 500, "Spread Shot"
@@ -127,7 +144,6 @@ class Game:
 
         def cost_sniper(): return 800, "Pierce Shot"
 
-        # FIX: BUY BACK PISTOL
         def buy_pistol(p): p.weapon_type = "pistol"
 
         def cost_pistol(): return 0, "Basic Gun"
@@ -147,25 +163,21 @@ class Game:
         def cost_dash(): return int(
             300 * (self.player.stats["dash_duration"] * 10)), f"Dash: {self.player.stats['dash_duration']:.2f}s"
 
-        # Layout
         self.buttons.append(Button((x1, y, w, h), "Damage +20%", up_dmg, cost_dmg))
         self.buttons.append(Button((x1, y + 60, w, h), "Fire Rate +0.5", up_fr, cost_fr))
         self.buttons.append(Button((x1, y + 120, w, h), "Speed +5%", up_spd, cost_spd))
 
         self.buttons.append(Button((x2, y, w, h), "Pierce +1", up_pierce, cost_pierce))
         self.buttons.append(Button((x2, y + 60, w, h), "Regen +0.5", up_regen, cost_regen))
-        # Heal Button with Condition
         self.buttons.append(Button((x2, y + 120, w, h), "Heal (30HP)", heal, cost_heal, condition_fn=can_heal))
 
         self.buttons.append(Button((x3, y, w, h), "BUY SHOTGUN", buy_shotgun, cost_shotgun))
         self.buttons.append(Button((x3, y + 60, w, h), "BUY SNIPER", buy_sniper, cost_sniper))
-        # New Pistol Button
         self.buttons.append(Button((x3, y + 120, w, h), "EQUIP PISTOL", buy_pistol, cost_pistol))
 
         self.buttons.append(Button((x4, y, w, h), "BUY DRONE", buy_drone, cost_drone))
         self.buttons.append(Button((x4, y + 60, w, h), "BUY GRENADES x3", buy_nade, cost_nade))
         self.buttons.append(Button((x4, y + 120, w, h), "UPGRADE DASH", up_dash, cost_dash))
-
 
     def start_next_level(self):
         self.level += 1
@@ -198,9 +210,6 @@ class Game:
 
         self.vm.add_text(SCREEN_W / 2, SCREEN_H / 2 - 100, f"LEVEL {self.level} STARTED", (255, 255, 100), 2.0, size=30)
         self.cam.add_shake(10)
-
-    # ... (spawn_enemy, handle_explosion, draw_vignette, draw_hud, draw_game_over REMAIN THE SAME) ...
-    # (Pasting them here for completeness if you need to copy the whole file, otherwise skip to draw_intro)
 
     def spawn_enemy(self):
         attempts = 0
@@ -236,14 +245,53 @@ class Game:
             if distance(gx, gy, e.wx, e.wy) < radius_world:
                 e.take_damage(damage)
 
+    # --- SMOOTH LIGHTING SYSTEM ---
     def draw_vignette(self):
         if self.intro_active: return
-        self.fog.fill((10, 10, 20))
+
+        # 1. Fill the fog layer with DARKNESS (Ambient Light)
+        # Use (5, 5, 10) for extremely dark, tactical feel
+        self.fog.fill((5, 5, 12))
+
+        # Helper to blit light cleanly
+        def draw_light(sx, sy, scale):
+            # Scale the pre-generated smooth gradient
+            size = int(self.light_radius * 2 * scale)
+            if size <= 0: return
+
+            # Optimization: Only scale if size changed (simple cache could go here)
+            # For now, transform.scale is fast enough for low object counts
+            scaled_light = pygame.transform.scale(self.light_surf, (size, size))
+
+            # Blit using ADD: This ADDS light to the darkness
+            # Center the light on the coordinate
+            self.fog.blit(scaled_light, (sx - size // 2, sy - size // 2), special_flags=pygame.BLEND_ADD)
+
+        # 2. Draw Player Flashlight
         px, py = self.cam.world_to_screen(self.player.wx + 0.5, self.player.wy + 0.5)
-        pygame.draw.circle(self.fog, (255, 255, 255), (px, py), 300 * self.cam.zoom)
-        self.fog.set_colorkey((255, 255, 255))
-        self.fog.set_alpha(150)
-        self.screen.blit(self.fog, (0, 0))
+        draw_light(px, py, self.cam.zoom * 1.0)  # 1.0 = Normal flashlight size
+
+        # 3. Draw Lights for Bullets (Glowing trails!)
+        for b in self.bullets:
+            bx, by = self.cam.world_to_screen(b.wx, b.wy)
+            draw_light(bx, by, self.cam.zoom * 0.15)  # Small glow for bullets
+
+        # 4. Draw Lights for Orbs
+        for o in self.orbs:
+            ox, oy = self.cam.world_to_screen(o.wx, o.wy)
+            draw_light(ox, oy, self.cam.zoom * 0.2)
+
+        # 5. Draw Lights for Explosions/Fire
+        for p in self.vm.particles:
+            if p.size > 5:
+                # Use particle color to tint the light?
+                # For simplicity in this blend mode, white light reveals the color underneath best.
+                draw_light(p.x, p.y, (p.size / 50.0))
+
+        # 6. Apply to Screen using MULTIPLY
+        # Darkness (Low RGB) * Screen = Dark
+        # Light (High RGB) * Screen = Lit
+        self.screen.blit(self.fog, (0, 0), special_flags=pygame.BLEND_MULT)
 
     def draw_hud(self):
         if self.intro_active: return
@@ -530,7 +578,6 @@ class Game:
                         self.player.health -= e.damage_to_player * dt
                         self.damage_alpha = 150.0
 
-
             if self.player.health <= 0:
                 self.game_over = True
                 sx, sy = self.cam.world_to_screen(self.player.wx, self.player.wy)
@@ -538,10 +585,23 @@ class Game:
 
             for b in self.bullets:
                 if check_grid_collision(b.wx, b.wy, self.map_grid):
+
                     b.lifetime = 0
                     sx, sy = self.cam.world_to_screen(b.wx, b.wy)
                     self.vm.add_particle(sx, sy, (200, 200, 200))
+
+                if b.owner_id != self.player.uid:
+                    if distance(self.player.wx, self.player.wy, b.wx, b.wy) < 0.6:
+                        self.player.health -= b.damage
+                        self.damage_alpha = 150.0  # Trigger red flash
+                        b.lifetime = 0  # Destroy bullet
+
+                        # Add blood effect
+                        sx, sy = self.cam.world_to_screen(self.player.wx, self.player.wy)
+                        self.vm.add_particle(sx, sy, (255, 0, 0))
+
                 for e in self.enemies:
+                    if e.uid == b.owner_id: continue
                     if e.uid in b.hit_list: continue
                     if distance(e.wx, e.wy, b.wx, b.wy) < 0.8:
                         e.take_damage(b.damage)
@@ -587,7 +647,7 @@ class Game:
             render_list.extend(self.walls)
             render_list.sort(key=lambda x: self.cam.world_to_screen(x.wx, x.wy)[1])
 
-            # FIX 1: DRAW SHADOWS FIRST (so they are under the bodies)
+            # DRAW SHADOWS FIRST (so they are under the bodies)
             for entity in render_list:
                 entity.draw_shadow(self.screen, self.cam)
 
