@@ -38,8 +38,6 @@ class Grenade:
         self.x = start_x
         self.y = start_y
         self.z = 15
-
-        # Heavier grenade throw
         max_throw = 6.0
         dist = distance(start_x, start_y, target_x, target_y)
         if dist > max_throw:
@@ -47,7 +45,6 @@ class Grenade:
             target_x = start_x + math.cos(angle) * max_throw
             target_y = start_y + math.sin(angle) * max_throw
             dist = max_throw
-
         speed_xy = 8.0
         angle = math.atan2(target_y - start_y, target_x - start_x)
         self.vx = math.cos(angle) * speed_xy
@@ -58,25 +55,19 @@ class Grenade:
         self.radius = 4.0
 
     def update(self, dt, grid):
-        if self.exploded:
-            return
-
+        if self.exploded: return
         next_x = self.x + self.vx * dt
         next_y = self.y + self.vy * dt
-
         if check_grid_collision(next_x, self.y, grid):
             self.vx = -self.vx * 0.6
         else:
             self.x = next_x
-
         if check_grid_collision(self.x, next_y, grid):
             self.vy = -self.vy * 0.6
         else:
             self.y = next_y
-
         self.z += self.vz * dt
         self.vz -= GRAVITY * 2 * dt
-
         if self.z < 0:
             self.z = 0
             self.vz = -self.vz * 0.5
@@ -84,10 +75,8 @@ class Grenade:
             self.vy *= 0.4
             if abs(self.vx) < 0.1: self.vx = 0
             if abs(self.vy) < 0.1: self.vy = 0
-
         self.timer -= dt
-        if self.timer <= 0:
-            self.exploded = True
+        if self.timer <= 0: self.exploded = True
 
     def draw(self, surf, cam):
         sx, sy = cam.world_to_screen(self.x, self.y)
@@ -117,15 +106,11 @@ class Entity:
         self.knockback_y += ky
 
     def physics_update(self, dt, grid=None):
-        # FIX 1: RECOIL GLITCH FIX
-        # Instead of just adding knockback to position, we use the collision checker
-        # to ensure the knockback doesn't push us inside a wall.
         if grid:
             kx_step = self.knockback_x * dt
             ky_step = self.knockback_y * dt
             self.check_wall_collision(kx_step, ky_step, grid)
         else:
-            # Fallback if no grid provided (shouldn't happen for player)
             self.wx += self.knockback_x * dt
             self.wy += self.knockback_y * dt
 
@@ -151,23 +136,18 @@ class Entity:
 
     def check_wall_collision(self, dx, dy, grid):
         margin = self.radius - 0.05
-
-        # Move X
         if dx != 0:
             original_x = self.wx
             self.wx += dx
             if self.check_area_collision(self.wx - margin, self.wx + margin, self.wy - margin, self.wy + margin, grid):
                 self.wx = original_x
-                self.knockback_x = 0  # Stop momentum on impact
-
-        # Move Y
+                self.knockback_x = 0
         if dy != 0:
             original_y = self.wy
             self.wy += dy
             if self.check_area_collision(self.wx - margin, self.wx + margin, self.wy - margin, self.wy + margin, grid):
                 self.wy = original_y
-                self.knockback_y = 0  # Stop momentum on impact
-
+                self.knockback_y = 0
         self.wx = clamp(self.wx, 1.1, MAP_W - 1.1)
         self.wy = clamp(self.wy, 1.1, MAP_H - 1.1)
 
@@ -181,12 +161,11 @@ class Entity:
         pass
 
 
-# --- NEW CLASS: ENERGY ORB ---
 class EnergyOrb(Entity):
     def __init__(self, wx, wy):
         super().__init__(wx, wy)
         self.radius = 0.3
-        self.lifetime = 15.0  # Disappears after 15 seconds
+        self.lifetime = 15.0
         self.bob_offset = random.uniform(0, 6.28)
         self.color = COL_ENERGY
 
@@ -197,24 +176,14 @@ class EnergyOrb(Entity):
     def draw(self, surf, cam):
         sx, sy = cam.world_to_screen(self.wx, self.wy)
         bob = math.sin(self.bob_offset) * 5
-
-        # Glow effect
         for i in range(3):
             alpha = 100 - (i * 30)
             r = (8 + i * 4) * cam.zoom
             s = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
             pygame.draw.circle(s, (*self.color, alpha), (r, r), r)
             surf.blit(s, (sx - r, sy - r - 10 - bob))
-
-        # Core
         pygame.draw.circle(surf, (255, 255, 255), (sx, sy - 10 - bob), 4 * cam.zoom)
 
-
-# --- BULLET & GRENADE (Keep as is, no changes needed) ---
-# ... (Keep Bullet and Grenade classes exactly as they were) ..
-
-# ... (Keep WallBlock, Enemy, OrbEnemy, BlockEnemy, SpikeEnemy, HexBoss, Drone classes exactly as is) ...
-# (I am omitting them here for brevity, assume they are pasted here unchanged)
 
 class WallBlock(Entity):
     def __init__(self, wx, wy, color_top, color_side):
@@ -263,10 +232,11 @@ class WallBlock(Entity):
 
         pygame.draw.polygon(surf, self.color_side, poly_side1)
         pygame.draw.polygon(surf, self.color_side, poly_side2)
-
         pygame.draw.polygon(surf, self.color_top, top_corners)
         pygame.draw.polygon(surf, (0, 0, 0), top_corners, 1)
 
+
+# --- START ENEMY UPDATES ---
 
 class Enemy(Entity):
     def __init__(self, wx, wy, level, vm):
@@ -291,26 +261,32 @@ class Enemy(Entity):
             self.dead = True
             self.vm.add_debris(self.wx, self.wy, self.debris_type, self.color)
 
-    def update(self, dt, player, grid):
-        # Pass grid to physics update for recoil checking
+    def update(self, dt, player, grid, bullets, cam):
         self.physics_update(dt, grid)
 
         if self.flash_timer > 0:
             self.flash_timer -= dt
 
         if abs(self.knockback_x) + abs(self.knockback_y) < 2.0:
-            if has_line_of_sight(self.wx, self.wy, player.wx, player.wy, grid):
-                self.path = []
+            # AI Logic: Prioritize direct movement if possible
+            dist_to_player = distance(self.wx, self.wy, player.wx, player.wy)
+
+            # Simple Line of Sight Check
+            can_see = has_line_of_sight(self.wx, self.wy, player.wx, player.wy, grid)
+
+            if can_see:
+                self.path = []  # Clear path if we see player
                 dx = player.wx - self.wx
                 dy = player.wy - self.wy
-                dist = math.hypot(dx, dy)
-                if dist > 0.1:
-                    self.move_towards(dx, dy, dist, dt, grid)
+                if dist_to_player > 0.1:
+                    self.move_towards(dx, dy, dist_to_player, dt, grid)
             else:
+                # Pathfinding fallback
                 self.path_timer -= dt
+                # FIX: Faster pathfinding updates (0.2s instead of 0.5s)
                 if self.path_timer <= 0:
-                    self.path_timer = 0.5
-                    if distance(self.wx, self.wy, player.wx, player.wy) > 1.0:
+                    self.path_timer = 0.2
+                    if dist_to_player > 1.0:
                         self.path = get_path_bfs((int(self.wx), int(self.wy)), (int(player.wx), int(player.wy)), grid)
                     else:
                         self.path = []
@@ -319,6 +295,8 @@ class Enemy(Entity):
                 if self.path:
                     next_node = self.path[0]
                     tx, ty = next_node[0] + 0.5, next_node[1] + 0.5
+
+                    # If we reached the node, pop it
                     if distance(self.wx, self.wy, tx, ty) < 0.2:
                         self.path.pop(0)
                     else:
@@ -331,9 +309,13 @@ class Enemy(Entity):
                     self.move_towards(dx, dy, dist, dt, grid)
 
     def move_towards(self, dx, dy, dist, dt, grid):
+        # FIX: Aggressive sliding logic is handled by check_wall_collision
+        # We ensure the vector is normalized properly.
         move_step = self.speed * dt
         vx = (dx / dist) * move_step
         vy = (dy / dist) * move_step
+
+        # We call this, which inherently handles "sliding" by cancelling X or Y individually
         self.check_wall_collision(vx, vy, grid)
 
     def draw(self, surf, cam):
@@ -380,15 +362,69 @@ class BlockEnemy(Enemy):
         self.money_value = 25 + level * 2
         self.debris_type = "robot_parts"
 
+        # Jump Ability
+        self.jump_cooldown = random.uniform(2.0, 4.0)
+        self.is_jumping = False
+        self.jump_timer = 0.0
+        self.jump_duration = 0.6
+        self.jump_target = (0, 0)
+        self.jump_start = (0, 0)
+        self.z = 0
+
+    def update(self, dt, player, grid, bullets, cam):
+        self.physics_update(dt, grid)
+        if self.flash_timer > 0: self.flash_timer -= dt
+
+        dist_to_player = distance(self.wx, self.wy, player.wx, player.wy)
+
+        if self.is_jumping:
+            self.jump_timer += dt
+            t = self.jump_timer / self.jump_duration
+
+            self.wx = self.jump_start[0] + (self.jump_target[0] - self.jump_start[0]) * t
+            self.wy = self.jump_start[1] + (self.jump_target[1] - self.jump_start[1]) * t
+            self.z = 5.0 * math.sin(t * math.pi)
+
+            if t >= 1.0:
+                self.is_jumping = False
+                self.z = 0
+                sx, sy = cam.world_to_screen(self.wx, self.wy)
+                self.vm.add_explosion(sx, sy, (100, 150, 255))
+                cam.add_shake(15)
+
+                impact_range = 2.5
+                if distance(self.wx, self.wy, player.wx, player.wy) < impact_range:
+                    player.health -= 15
+                    angle = math.atan2(player.wy - self.wy, player.wx - self.wx)
+                    player.apply_knockback(math.cos(angle) * 10, math.sin(angle) * 10)
+                    self.vm.add_text(sx, sy - 50, "SMASH!", (255, 50, 50), 1.0, 30)
+
+                self.jump_cooldown = random.uniform(3.0, 5.0)
+
+        else:
+            self.jump_cooldown -= dt
+            if self.jump_cooldown <= 0 and dist_to_player < 7.0 and dist_to_player > 1.5:
+                self.is_jumping = True
+                self.jump_timer = 0
+                self.jump_start = (self.wx, self.wy)
+                pred_x = player.wx + player.vx * 0.4
+                pred_y = player.wy + player.vy * 0.4
+                self.jump_target = (pred_x, pred_y)
+            else:
+                super().update(dt, player, grid, bullets, cam)
+
     def draw(self, surf, cam):
         sx, sy = cam.world_to_screen(self.wx, self.wy)
         col = (255, 255, 255) if self.flash_timer > 0 else self.color
+        if not self.is_jumping and self.jump_cooldown < 0.5 and int(self.jump_cooldown * 10) % 2 == 0:
+            col = (255, 50, 50)
         s = 40 * cam.zoom
+        draw_y = sy - (self.z * 15 * cam.zoom)
         rect = pygame.Rect(0, 0, s, s)
-        rect.center = (sx, sy - s // 2)
+        rect.center = (sx, draw_y - s // 2)
         pygame.draw.rect(surf, col, rect)
         pygame.draw.rect(surf, (20, 20, 50), rect, int(2 * cam.zoom))
-        self.draw_hp(surf, sx, sy - s - 10, cam.zoom)
+        self.draw_hp(surf, sx, draw_y - s - 10, cam.zoom)
 
 
 class SpikeEnemy(Enemy):
@@ -396,17 +432,80 @@ class SpikeEnemy(Enemy):
         super().__init__(wx, wy, level, vm)
         self.max_health = 8 + level * 3
         self.health = self.max_health
-        self.speed = 4.0 + (level * 0.2)
+        self.base_speed = 4.0 + (level * 0.2)
+        self.speed = self.base_speed
         self.color = (200, 200, 50)
         self.money_value = 15 + level
         self.move_timer = 0
         self.move_dir = (0, 0)
 
+        # Dash Ability
+        self.dash_active = False
+        self.dash_timer = 0
+        self.ghost_timer = 0
+        self.dash_cooldown = 2.0
+
+    def update(self, dt, player, grid, bullets, cam):
+        # 30% Chance to Dash Logic
+        if not self.dash_active:
+            self.dash_cooldown -= dt
+            if self.dash_cooldown <= 0:
+                self.dash_cooldown = random.uniform(2.0, 4.0)
+                if random.random() < 0.30:  # 30% Chance
+                    self.dash_active = True
+                    self.dash_timer = 0.5  # Dash duration
+                    self.speed = self.base_speed * 3.5  # Super fast
+                    self.damage_to_player = 25  # Deadlier
+
+                    # Aim dash at player
+                    dx = player.wx - self.wx
+                    dy = player.wy - self.wy
+                    ang = math.atan2(dy, dx)
+                    self.move_dir = (math.cos(ang), math.sin(ang))
+                    self.move_timer = 99  # Lock direction
+
+        if self.dash_active:
+            self.dash_timer -= dt
+            self.ghost_timer -= dt
+
+            # FIX: VISUALS - BIG GHOSTS AND AIR
+            if self.ghost_timer <= 0:
+                # Big Ghost (Radius 0.8 instead of 0.4)
+                self.vm.add_ghost(self.wx, self.wy, (255, 255, 100), 0.8)
+                self.ghost_timer = 0.05
+
+            # Add "Air" Wind Particles
+            sx, sy = cam.world_to_screen(self.wx, self.wy)
+            # Create a particle moving opposite to dash
+            opp_vx = -self.move_dir[0] * 50
+            opp_vy = -self.move_dir[1] * 50
+            # Manually adding a specific particle to VM for wind effect
+            # x, y, color, speed, lifetime, size
+            self.vm.add_particle(sx + random.randint(-10, 10), sy + random.randint(-10, 10), (200, 255, 255))
+
+            if self.dash_timer <= 0:
+                self.dash_active = False
+                self.speed = self.base_speed
+                self.damage_to_player = 10  # Reset damage
+
+        # Movement
+        if self.dash_active:
+            # Force movement in dash direction
+            vx = self.move_dir[0] * self.speed * dt
+            vy = self.move_dir[1] * self.speed * dt
+            self.check_wall_collision(vx, vy, grid)
+            self.physics_update(dt, grid)
+        else:
+            # Normal movement
+            self.move_towards(0, 0, 0, dt, grid)  # Logic inside move_towards handles random drift
+            self.physics_update(dt, grid)
+
     def move_towards(self, dx, dy, dist, dt, grid):
         self.move_timer -= dt
         if self.move_timer <= 0:
             self.move_timer = random.uniform(0.3, 0.8)
-            angle = math.atan2(dy, dx) + random.uniform(-1.0, 1.0)
+            # Random jittery movement
+            angle = random.uniform(0, 6.28)
             self.move_dir = (math.cos(angle), math.sin(angle))
 
         vx = self.move_dir[0] * self.speed * dt
@@ -416,6 +515,8 @@ class SpikeEnemy(Enemy):
     def draw(self, surf, cam):
         sx, sy = cam.world_to_screen(self.wx, self.wy)
         col = (255, 255, 255) if self.flash_timer > 0 else self.color
+        if self.dash_active: col = (255, 255, 200)  # Brighter when dashing
+
         h = 40 * cam.zoom
         w = 15 * cam.zoom
         p1 = (sx, sy - h)
@@ -428,30 +529,105 @@ class SpikeEnemy(Enemy):
 class HexBoss(Enemy):
     def __init__(self, wx, wy, level, vm):
         super().__init__(wx, wy, level, vm)
-        self.max_health = 300 + level * 50
+        # BOSS STATS - MUCH STRONGER
+        self.max_health = 2000 + (level * 500)
         self.health = self.max_health
-        self.speed = 1.2 + (level * 0.05)
-        self.radius = 0.8
+        self.speed = 1.0 + (level * 0.05)
+        self.radius = 0.4
         self.color = (150, 50, 200)
-        self.money_value = 500
+        self.money_value = 1000
         self.damage_to_player = 30
         self.debris_type = "scorch"
+
+        self.shoot_timer = 2.0
+        self.burst_count = 0
+        self.pattern_timer = 0
+        self.current_stage = 1
+
+    def update(self, dt, player, grid, bullets, cam):
+        super().update(dt, player, grid, bullets, cam)
+
+        # DETERMINE STAGE
+        hp_pct = self.health / self.max_health
+        if hp_pct > 0.66:
+            self.current_stage = 1
+            self.color = (150, 50, 200)  # Purple
+        elif hp_pct > 0.33:
+            self.current_stage = 2
+            self.color = (200, 50, 50)  # Reddish
+        else:
+            self.current_stage = 3
+            self.color = (50, 0, 0)  # Dark Red (Enraged)
+
+        # ATTACK LOGIC
+        self.shoot_timer -= dt
+
+        if self.shoot_timer <= 0:
+            if self.current_stage == 1:
+                # STAGE 1: Controlled Bursts
+                self.shoot_timer = 1.5
+                self.fire_spread(bullets, player, 3, 0.2)
+
+            elif self.current_stage == 2:
+                # STAGE 2: Spiral + Rapid
+                self.shoot_timer = 0.1
+                self.pattern_timer += 0.5
+                # Spiral shot
+                angle = self.pattern_timer
+                bx = math.cos(angle)
+                by = math.sin(angle)
+                b = Bullet(self.wx, self.wy, bx, by, 6.0, 15, 0, (200, 100, 255), self.uid)
+                bullets.append(b)
+
+                # Occasional direct shot
+                if random.random() < 0.1:
+                    self.fire_spread(bullets, player, 1, 0)
+
+            elif self.current_stage == 3:
+                # STAGE 3: ENRAGED (Nova + Shotgun)
+                self.shoot_timer = 0.8
+                # Nova
+                for i in range(8):
+                    ang = (6.28 / 8) * i + self.pattern_timer
+                    b = Bullet(self.wx, self.wy, math.cos(ang), math.sin(ang), 5.0, 20, 0, (255, 0, 0), self.uid)
+                    bullets.append(b)
+                # Shotgun at player
+                self.fire_spread(bullets, player, 5, 0.5)
+                self.speed = 3.0  # Moves fast now!
+
+    def fire_spread(self, bullets, player, count, spread):
+        dx = player.wx - self.wx
+        dy = player.wy - self.wy
+        base_ang = math.atan2(dy, dx)
+
+        for _ in range(count):
+            ang = base_ang + random.uniform(-spread, spread)
+            bx = math.cos(ang)
+            by = math.sin(ang)
+            b = Bullet(self.wx, self.wy, bx, by, 8.0, 15, 0, (255, 50, 255), self.uid)
+            bullets.append(b)
 
     def draw(self, surf, cam):
         sx, sy = cam.world_to_screen(self.wx, self.wy)
         col = (255, 255, 255) if self.flash_timer > 0 else self.color
+
         pts = []
-        radius = 35 * cam.zoom
+        radius = 40 * cam.zoom
+        # Spin faster in later stages
+        spin_speed = 0.1 * self.current_stage
+
         for i in range(6):
-            ang = math.radians(i * 60)
+            ang = math.radians(i * 60 + pygame.time.get_ticks() * spin_speed)
             px = sx + math.cos(ang) * radius
             py = (sy - 20 * cam.zoom) + math.sin(ang) * radius * 0.7
             pts.append((px, py))
+
         pygame.draw.polygon(surf, col, pts)
         pygame.draw.polygon(surf, (255, 255, 255), pts, int(3 * cam.zoom))
-        self.draw_hp(surf, sx, sy - 70 * cam.zoom, cam.zoom)
+        self.draw_hp(surf, sx, sy - 80 * cam.zoom, cam.zoom)
 
 
+# --- PLAYER AND DRONE REMAIN THE SAME ---
 class Drone:
     def __init__(self, player, index, total_drones):
         self.player = player
@@ -505,14 +681,11 @@ class Player(Entity):
         self.dash_timer = 0
         self.ghost_spawn_timer = 0
         self.money = 0
-
-        # --- ULTIMATE STATS ---
         self.energy = 0
         self.max_energy = 100
         self.ultimate_active = False
         self.ultimate_timer = 0.0
         self.ultimate_duration = 5.0
-
         self.stats = {
             "hp_max": PLAYER_START_HP,
             "hp_regen": 0.0,
@@ -548,23 +721,11 @@ class Player(Entity):
         return False
 
     def update(self, dt, enemies, bullets, grid, vm):
-        # FIX 1: Pass grid to physics update for recoil checking
         self.physics_update(dt, grid)
-
-        if self.dash_cooldown > 0:
-            self.dash_cooldown -= dt
-
-        # Update Ultimate Timer
+        if self.dash_cooldown > 0: self.dash_cooldown -= dt
         if self.ultimate_active:
             self.ultimate_timer -= dt
-            # Visual effect for ultimate
-            if random.random() < 0.2:
-                vm.add_particle(self.wx * TILE_W_BASE, self.wy * TILE_H_BASE,
-                                (0, 255, 255))  # Only works if visual uses world coords? No, visuals use screen coords.
-                # Actually visuals use screen, so we skip adding particles here to avoid math headache, handled in Draw.
-
-            if self.ultimate_timer <= 0:
-                self.ultimate_active = False
+            if self.ultimate_timer <= 0: self.ultimate_active = False
 
         if self.is_dashing:
             self.dash_timer -= dt
@@ -572,7 +733,6 @@ class Player(Entity):
             if self.ghost_spawn_timer <= 0:
                 vm.add_ghost(self.wx, self.wy, (100, 100, 255), 14)
                 self.ghost_spawn_timer = 0.03
-
             if self.dash_timer <= 0:
                 self.is_dashing = False
                 self.vx /= self.stats["dash_speed_mult"]
@@ -581,17 +741,13 @@ class Player(Entity):
         step_x = self.vx * dt
         step_y = self.vy * dt
         self.check_wall_collision(step_x, step_y, grid)
-
         if self.health < self.stats["hp_max"] and self.stats["hp_regen"] > 0:
             self.health += self.stats["hp_regen"] * dt
-            if self.health > self.stats["hp_max"]:
-                self.health = self.stats["hp_max"]
+            if self.health > self.stats["hp_max"]: self.health = self.stats["hp_max"]
 
         self.last_shot += dt
         self.anim_timer += dt * 5
-
-        for d in self.drones:
-            d.update(dt, enemies, bullets)
+        for d in self.drones: d.update(dt, enemies, bullets)
 
     def attempt_dash(self):
         if self.dash_cooldown <= 0 and not self.is_dashing:
@@ -605,102 +761,95 @@ class Player(Entity):
 
     def shoot(self, target_wx, target_wy, vm):
         fire_rate = self.stats["fire_rate"]
-
-        # Ultimate Modifications
-        if self.ultimate_active and self.weapon_type == "pistol":
-            fire_rate *= 4.0  # 4x speed for pistol ult
-
-        if self.last_shot < (1.0 / fire_rate):
-            return []
-
         cooldown_mod = 1.0
         recoil_force = 0.0
+        if self.ultimate_active:
+            if self.weapon_type == "pistol":
+                fire_rate *= 4.0
+                cooldown_mod = 0.2
+                recoil_force = 0
+            elif self.weapon_type == "shotgun":
+                fire_rate *= 2.5
+                cooldown_mod = 0.4
+                recoil_force = 0
+            elif self.weapon_type == "sniper":
+                fire_rate *= 2.0
+                cooldown_mod = 0.5
+                recoil_force = 0
+        else:
+            if self.weapon_type == "shotgun":
+                cooldown_mod = 1.5
+                recoil_force = 3.0
+            if self.weapon_type == "sniper":
+                cooldown_mod = 2.5
+                recoil_force = 6.0
 
-        if self.weapon_type == "shotgun":
-            cooldown_mod = 1.5
-            recoil_force = 3.0
-        if self.weapon_type == "sniper":
-            cooldown_mod = 2.5
-            recoil_force = 6.0
-
-        # Pistol Ultimate: "Go Wild"
-        if self.ultimate_active and self.weapon_type == "pistol":
-            cooldown_mod = 0.2  # Super fast
-            recoil_force = 0  # No recoil during ult
-
+        if self.last_shot < (1.0 / fire_rate): return []
         self.last_shot = 0 - (1.0 / fire_rate) * (cooldown_mod - 1.0)
-
         bullets = []
         dx = target_wx - self.wx
         dy = target_wy - self.wy
         base_angle = math.atan2(dy, dx)
-
-        # Apply recoil (Knockback will now safely slide against walls due to Fix 1)
         if recoil_force > 0:
             self.apply_knockback(-math.cos(base_angle) * recoil_force, -math.sin(base_angle) * recoil_force)
 
-        # --- WEAPON LOGIC ---
-
-        # 4. FIX: PISTOL ULTIMATE "GO WILD"
-        if self.ultimate_active and self.weapon_type == "pistol":
-            # Shoot in totally random direction
-            angle = random.uniform(0, 6.28)
-            bx = math.cos(angle)
-            by = math.sin(angle)
-            b = Bullet(self.wx, self.wy, bx, by, self.stats["bullet_speed"] * 1.2, self.stats["damage"] * 1.5,
-                       1, (0, 255, 255), self.uid)  # Cyan bullets
-            bullets.append(b)
-
-        elif self.weapon_type == "shotgun":
-            for _ in range(5):
-                angle = base_angle + random.uniform(-0.3, 0.3)
+        if self.weapon_type == "shotgun":
+            pellets = 5
+            spread = 0.3
+            color = (255, 100, 100)
+            if self.ultimate_active:
+                pellets = 7
+                spread = 0.6
+                color = (255, 50, 0)
+            for _ in range(pellets):
+                angle = base_angle + random.uniform(-spread, spread)
                 bx = math.cos(angle)
                 by = math.sin(angle)
                 spd = self.stats["bullet_speed"] * random.uniform(0.8, 1.1)
                 dmg = self.stats["damage"] * 0.6
-                b = Bullet(self.wx, self.wy, bx, by, spd, dmg, 0, (255, 100, 100), self.uid)
+                b = Bullet(self.wx, self.wy, bx, by, spd, dmg, 0, color, self.uid)
                 b.lifetime = 0.6
                 bullets.append(b)
-
         elif self.weapon_type == "sniper":
             bx = math.cos(base_angle)
             by = math.sin(base_angle)
-            b = Bullet(self.wx, self.wy, bx, by, self.stats["bullet_speed"] * 2.0, self.stats["damage"] * 4.0,
-                       self.stats["pierce"] + 10, (100, 255, 255), self.uid)
+            dmg = self.stats["damage"] * 4.0
+            pierce = self.stats["pierce"] + 10
+            spd = self.stats["bullet_speed"] * 2.0
+            col = (100, 255, 255)
+            if self.ultimate_active:
+                pierce = 999
+                dmg *= 2.0
+                spd *= 1.5
+                col = (0, 255, 255)
+            b = Bullet(self.wx, self.wy, bx, by, spd, dmg, pierce, col, self.uid)
             bullets.append(b)
-
-        else:  # Pistol Normal
+        else:
             angle = base_angle + random.uniform(-self.stats["spread"], self.stats["spread"])
+            if self.ultimate_active: angle = random.uniform(0, 6.28)
             bx = math.cos(angle)
             by = math.sin(angle)
             b = Bullet(self.wx, self.wy, bx, by, self.stats["bullet_speed"], self.stats["damage"],
                        int(self.stats["pierce"]), (255, 255, 150), self.uid)
             bullets.append(b)
-
         return bullets
 
     def draw(self, surf, cam):
         sx, sy = cam.world_to_screen(self.wx, self.wy)
-
         bob = math.sin(self.anim_timer) * 3
         center_y = sy - (15 * cam.zoom) + bob
         col = self.color_body
-
         if self.ultimate_active:
-            col = (0, 255, 255)  # Turn Cyan during ult
-            # Aura
+            col = (0, 255, 255)
             pygame.draw.circle(surf, (0, 255, 255), (sx, center_y), 18 * cam.zoom, 2)
-
         if self.is_dashing: col = (200, 200, 255)
-
         pygame.draw.circle(surf, col, (sx, center_y), 14 * cam.zoom)
         if self.weapon_type == "shotgun":
             pygame.draw.circle(surf, (255, 50, 50), (sx + 10 * cam.zoom, center_y), 5 * cam.zoom)
         elif self.weapon_type == "sniper":
             pygame.draw.line(surf, (50, 255, 50), (sx, center_y), (sx + 15 * cam.zoom, center_y), int(3 * cam.zoom))
         pygame.draw.circle(surf, (150, 200, 255), (sx - 4 * cam.zoom, center_y - 4 * cam.zoom), 5 * cam.zoom)
-        for d in self.drones:
-            d.draw(surf, cam)
+        for d in self.drones: d.draw(surf, cam)
         w = 40 * cam.zoom
         h = 6 * cam.zoom
         bar_x = sx - w // 2
