@@ -1,10 +1,10 @@
 # main.py
 """
-ISOMETRIC SHOOTER - TITAN EDITION (EXPANDED v6.0)
+ISOMETRIC SHOOTER - TITAN EDITION (EXPANDED v6.4)
 ================================================================================
 CREATED FOR: Paul
 DATE: December 7, 2025
-VERSION: 6.0 (Full Expanded Formatting)
+VERSION: 6.4 (Fixes Player Spawning Stuck in Walls)
 """
 
 import math
@@ -21,6 +21,7 @@ from entities import Player, Grenade, HexBoss, SpikeEnemy, BlockEnemy, OrbEnemy
 from map_gen import generate_map, create_wall_entities, draw_floor_grid
 from ui import Button
 
+
 # ==========================================
 # MAIN GAME LOGIC
 # ==========================================
@@ -28,7 +29,7 @@ class Game:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
-        pygame.display.set_caption("Isometric Titan Shooter - v6.0 Dash Update")
+        pygame.display.set_caption("Square Up - v6.4")
         self.clock = pygame.time.Clock()
 
         self.font = pygame.font.SysFont("Consolas", 16, bold=True)
@@ -75,40 +76,53 @@ class Game:
         y = SCREEN_H - 240
 
         def up_dmg(p): p.stats["damage"] *= 1.2
+
         def cost_dmg(): return int(self.player.stats["damage"] * 15), f"Dmg: {self.player.stats['damage']:.1f}"
 
         def up_fr(p): p.stats["fire_rate"] += 0.5
+
         def cost_fr(): return int(self.player.stats["fire_rate"] * 40), f"Rate: {self.player.stats['fire_rate']:.1f}"
 
         def up_spd(p): p.stats["speed"] *= 1.05
+
         def cost_spd(): return int(self.player.stats["speed"] * 50), f"Spd: {self.player.stats['speed']:.1f}"
 
         def up_pierce(p): p.stats["pierce"] += 1
+
         def cost_pierce(): return int(200 * (self.player.stats["pierce"] + 1)), f"Pierce: {self.player.stats['pierce']}"
 
         def up_regen(p): p.stats["hp_regen"] += 0.5
-        def cost_regen(): return int(100 * (self.player.stats["hp_regen"] + 1)), f"Regen: {self.player.stats['hp_regen']:.1f}"
+
+        def cost_regen(): return int(
+            100 * (self.player.stats["hp_regen"] + 1)), f"Regen: {self.player.stats['hp_regen']:.1f}"
 
         def heal(p): p.health = min(p.health + 30, p.stats["hp_max"])
+
         def cost_heal(): return 20, f"HP: {int(self.player.health)}"
 
         def buy_shotgun(p): p.weapon_type = "shotgun"
+
         def cost_shotgun(): return 500, "Spread Shot"
 
         def buy_sniper(p): p.weapon_type = "sniper"
+
         def cost_sniper(): return 800, "Pierce Shot"
 
         def buy_drone(p): p.add_drone()
+
         def cost_drone(): return 300 * (len(self.player.drones) + 1), f"Count: {len(self.player.drones)}"
 
         def buy_nade(p): p.grenade_count += 3
+
         def cost_nade(): return 100, f"Nades: {self.player.grenade_count}"
 
         # NEW DASH UPGRADE
         def up_dash(p):
             p.stats["dash_duration"] += 0.05
             p.stats["dash_speed_mult"] += 0.2
-        def cost_dash(): return int(300 * (self.player.stats["dash_duration"] * 10)), f"Dash: {self.player.stats['dash_duration']:.2f}s"
+
+        def cost_dash(): return int(
+            300 * (self.player.stats["dash_duration"] * 10)), f"Dash: {self.player.stats['dash_duration']:.2f}s"
 
         self.buttons.append(Button((x1, y, w, h), "Damage +20%", up_dmg, cost_dmg))
         self.buttons.append(Button((x1, y + 60, w, h), "Fire Rate +0.5", up_fr, cost_fr))
@@ -131,27 +145,81 @@ class Game:
         self.enemies_spawned = 0
         self.enemies_killed_in_wave = 0
         self.enemies_to_spawn = 10 + int(self.level * 2.5)
+
+        # 1. Generate new map
         self.map_grid = generate_map(MAP_W, MAP_H, self.level)
         self.walls = create_wall_entities(self.map_grid, self.level)
+
+        # 2. FIX: Robust Stuck Check
+        # We calculate the player's bounding box.
+        # If ANY part of the player overlaps a wall, we move them.
+        margin = self.player.radius
+        min_x = self.player.wx - margin
+        max_x = self.player.wx + margin
+        min_y = self.player.wy - margin
+        max_y = self.player.wy + margin
+
+        # Use the Entity's own collision check to detect being stuck
+        if self.player.check_area_collision(min_x, max_x, min_y, max_y, self.map_grid):
+            # Player is stuck! Search for nearest safe tile.
+            px, py = int(self.player.wx), int(self.player.wy)
+            found_safe = False
+
+            # Spiral search outwards from current position
+            for r in range(1, 10):
+                for dy in range(-r, r + 1):
+                    for dx in range(-r, r + 1):
+                        # Optimization: only check outer ring
+                        if abs(dx) != r and abs(dy) != r: continue
+
+                        tx = px + dx
+                        ty = py + dy
+
+                        if 0 <= tx < MAP_W and 0 <= ty < MAP_H:
+                            if self.map_grid[ty][tx] == 0:
+                                # Found a safe tile!
+                                # Center the player in it (x.5, y.5) to ensure safety
+                                self.player.wx = tx + 0.5
+                                self.player.wy = ty + 0.5
+                                found_safe = True
+                                self.cam.add_shake(5)  # Small bounce effect
+                                break
+                    if found_safe: break
+                if found_safe: break
+
+            # Failsafe: if map is crazy full, go to center
+            if not found_safe:
+                self.player.wx = MAP_W / 2
+                self.player.wy = MAP_H / 2
+
         self.vm.add_text(SCREEN_W / 2, SCREEN_H / 2 - 100, f"LEVEL {self.level} STARTED", (255, 255, 100), 2.0, size=30)
         self.cam.add_shake(10)
 
     def spawn_enemy(self):
         attempts = 0
         while attempts < 20:
-            if random.choice([True, False]):
-                wx = random.choice([0, MAP_W-1])
-                wy = random.uniform(0, MAP_H)
-            else:
-                wx = random.uniform(0, MAP_W)
-                wy = random.choice([0, MAP_H-1])
+            # FIX: We now select integer coordinates to find a specific tile
+            ix = random.randint(1, MAP_W - 2)
+            iy = random.randint(1, MAP_H - 2)
 
-            if not check_grid_collision(wx, wy, self.map_grid):
+            # Check if that tile is empty (0)
+            if self.map_grid[iy][ix] == 0:
+                # FIX: Spawn exactly at center (x + 0.5)
+                # This guarantees they are 0.5 units away from any wall,
+                # which is safe for their 0.4 unit body size.
+                wx = ix + 0.5
+                wy = iy + 0.5
+
+                # Ensure we don't spawn literally on top of the player
+                if distance(wx, wy, self.player.wx, self.player.wy) < 5.0:
+                    attempts += 1
+                    continue
+
                 r = random.random()
                 e = None
                 if self.level % 5 == 0 and self.enemies_spawned == self.enemies_to_spawn - 1:
-                     e = HexBoss(wx, wy, self.level, self.vm)
-                     self.vm.add_text(SCREEN_W/2, SCREEN_H/2, "BOSS DETECTED", (255,50,50), 3.0, 30)
+                    e = HexBoss(wx, wy, self.level, self.vm)
+                    self.vm.add_text(SCREEN_W / 2, SCREEN_H / 2, "BOSS DETECTED", (255, 50, 50), 3.0, 30)
                 elif r < 0.2 and self.level > 2:
                     e = SpikeEnemy(wx, wy, self.level, self.vm)
                 elif r < 0.4 and self.level > 1:
@@ -175,8 +243,8 @@ class Game:
                 dmg = damage * (1.0 - (dist / radius_world) * 0.5)
                 e.take_damage(dmg)
                 angle = math.atan2(e.wy - gy, e.wx - gx)
-                force = 20.0 * (1.0 - dist/radius_world)
-                e.apply_knockback(math.cos(angle)*force, math.sin(angle)*force)
+                force = 20.0 * (1.0 - dist / radius_world)
+                e.apply_knockback(math.cos(angle) * force, math.sin(angle) * force)
                 esx, esy = self.cam.world_to_screen(e.wx, e.wy)
                 self.vm.add_text(esx, esy - 50, f"{int(dmg)}!", COL_EXPLOSION, 1.0, 20)
 
@@ -187,62 +255,61 @@ class Game:
         pygame.draw.circle(self.fog, (255, 255, 255), (px, py), 300 * self.cam.zoom)
 
         for b in self.bullets:
-             bx, by = self.cam.world_to_screen(b.wx, b.wy)
-             pygame.draw.circle(self.fog, (255,255,255), (bx, by), 30 * self.cam.zoom)
+            bx, by = self.cam.world_to_screen(b.wx, b.wy)
+            pygame.draw.circle(self.fog, (255, 255, 255), (bx, by), 30 * self.cam.zoom)
 
         for g in self.grenades:
             if g.timer < 0.5:
                 gx, gy = self.cam.world_to_screen(g.x, g.y)
-                pygame.draw.circle(self.fog, (255,200,200), (gx, gy), 100 * self.cam.zoom)
+                pygame.draw.circle(self.fog, (255, 200, 200), (gx, gy), 100 * self.cam.zoom)
 
         self.fog.set_colorkey((255, 255, 255))
         self.fog.set_alpha(150)
         self.screen.blit(self.fog, (0, 0))
 
-        # 1. UPDATE draw_hud TO SHOW NEW CONTROLS
     def draw_hud(self):
-            infos = [
-                f"Level: {self.level}",
-                f"Wave Progress: {self.enemies_killed_in_wave} / {self.enemies_to_spawn}",
-                f"Money: ${int(self.player.money)}",
-                f"Weapon: {self.player.weapon_type.upper()}",
-                f"Grenades: {self.player.grenade_count}",
-                f"Drones: {len(self.player.drones)}"
-            ]
+        infos = [
+            f"Level: {self.level}",
+            f"Wave Progress: {self.enemies_killed_in_wave} / {self.enemies_to_spawn}",
+            f"Money: ${int(self.player.money)}",
+            f"Weapon: {self.player.weapon_type.upper()}",
+            f"Grenades: {self.player.grenade_count}",
+            f"Drones: {len(self.player.drones)}"
+        ]
 
-            for i, text in enumerate(infos):
-                surf = self.font.render(text, True, COL_TEXT)
-                shadow = self.font.render(text, True, (0, 0, 0))
-                self.screen.blit(shadow, (11, 11 + i * 25))
-                self.screen.blit(surf, (10, 10 + i * 25))
+        for i, text in enumerate(infos):
+            surf = self.font.render(text, True, COL_TEXT)
+            shadow = self.font.render(text, True, (0, 0, 0))
+            self.screen.blit(shadow, (11, 11 + i * 25))
+            self.screen.blit(surf, (10, 10 + i * 25))
 
-            # UPDATED HINT TEXT
-            hint = "Scroll: Zoom | Shift: Dash | SPACE: Rotate View | ENTER: Next Wave"
-            hint_surf = self.font.render(hint, True, (150, 150, 150))
-            self.screen.blit(hint_surf, (SCREEN_W - hint_surf.get_width() - 10, 10))
+        # UPDATED HINT TEXT
+        hint = "Scroll: Zoom | Shift: Dash | SPACE: Rotate View | ENTER: Next Wave"
+        hint_surf = self.font.render(hint, True, (150, 150, 150))
+        self.screen.blit(hint_surf, (SCREEN_W - hint_surf.get_width() - 10, 10))
 
-            if not self.wave_active:
-                overlay = pygame.Surface((SCREEN_W, 250))
-                overlay.fill((0, 0, 0))
-                overlay.set_alpha(180)
-                self.screen.blit(overlay, (0, SCREEN_H - 250))
+        if not self.wave_active:
+            overlay = pygame.Surface((SCREEN_W, 250))
+            overlay.fill((0, 0, 0))
+            overlay.set_alpha(180)
+            self.screen.blit(overlay, (0, SCREEN_H - 250))
 
-                # UPDATED SHOP TEXT
-                msg = self.shop_font.render("SHOP OPEN - Press ENTER for Next Wave", True, (100, 255, 100))
-                self.screen.blit(msg, (SCREEN_W // 2 - msg.get_width() // 2, SCREEN_H - 290))
+            # UPDATED SHOP TEXT
+            msg = self.shop_font.render("SHOP OPEN - Press ENTER for Next Wave", True, (100, 255, 100))
+            self.screen.blit(msg, (SCREEN_W // 2 - msg.get_width() // 2, SCREEN_H - 290))
 
-                for b in self.buttons:
-                    b.draw(self.screen, self.font, self.player.money)
+            for b in self.buttons:
+                b.draw(self.screen, self.font, self.player.money)
 
     def draw_game_over(self):
         self.screen.fill((20, 0, 0))
         txt = self.title_font.render("GAME OVER", True, (255, 50, 50))
         sub = self.font.render(f"You reached Level {self.level}", True, (200, 200, 200))
         restart = self.font.render("Press R to Restart", True, (255, 255, 255))
-        cx, cy = SCREEN_W//2, SCREEN_H//2
-        self.screen.blit(txt, (cx - txt.get_width()//2, cy - 50))
-        self.screen.blit(sub, (cx - sub.get_width()//2, cy + 10))
-        self.screen.blit(restart, (cx - restart.get_width()//2, cy + 50))
+        cx, cy = SCREEN_W // 2, SCREEN_H // 2
+        self.screen.blit(txt, (cx - txt.get_width() // 2, cy - 50))
+        self.screen.blit(sub, (cx - sub.get_width() // 2, cy + 10))
+        self.screen.blit(restart, (cx - restart.get_width() // 2, cy + 50))
         pygame.display.flip()
 
     def run(self):
@@ -261,11 +328,11 @@ class Game:
                 elif event.type == KEYDOWN:
                     if event.key == K_ESCAPE: running = False
 
-                    # CHANGED: SPACE ROTATES CAMERA
+                    # SPACE ROTATES CAMERA
                     if event.key == K_SPACE:
                         self.cam.rotate_view()
 
-                    # CHANGED: ENTER STARTS NEXT LEVEL
+                    # ENTER STARTS NEXT LEVEL
                     if event.key == K_RETURN and not self.wave_active and not self.game_over:
                         self.start_next_level()
 
@@ -287,6 +354,7 @@ class Game:
                 self.draw_game_over()
                 continue
 
+            # --- MOVEMENT INPUT (FIXED FOR 90-DEGREE ROTATION) ---
             keys = pygame.key.get_pressed()
             if keys[K_LSHIFT]: self.player.attempt_dash()
 
@@ -299,25 +367,21 @@ class Game:
             if keys[K_d] or keys[K_RIGHT]: input_x = 1  # Right on Screen
 
             # 2. Rotate Input Logic (Discrete 90-degree steps)
-            # We map screen inputs to world directions based on camera rotation index.
             # 0 = Normal, 1 = 90 deg, 2 = 180 deg, 3 = 270 deg
-
             vx, vy = 0, 0
 
             # Determine World Direction based on Rotation Index
-            # This is hard-coded to be perfect for 90-degree turns
             idx = self.cam.rotation_index % 4
 
-            if idx == 0:  # 0 degrees: W moves -Y (North)
+            if idx == 0:  # 0 degrees
                 vx, vy = input_x, input_y
-            elif idx == 1:  # 90 degrees: W moves +X (East)
+            elif idx == 1:  # 90 degrees
                 vx, vy = input_y, -input_x
-            elif idx == 2:  # 180 degrees: W moves +Y (South)
+            elif idx == 2:  # 180 degrees
                 vx, vy = -input_x, -input_y
-            elif idx == 3:  # 270 degrees: W moves -X (West)
+            elif idx == 3:  # 270 degrees
                 vx, vy = -input_y, input_x
 
-            # 3. Apply Speed
             if vx != 0 or vy != 0:
                 l = math.hypot(vx, vy)
                 vx /= l
@@ -355,7 +419,7 @@ class Game:
                         self.spawn_timer = rate
                 elif len(self.enemies) == 0:
                     self.wave_active = False
-                    self.vm.add_text(SCREEN_W/2, SCREEN_H/2, "WAVE CLEARED", (100, 255, 100), 3.0, 30)
+                    self.vm.add_text(SCREEN_W / 2, SCREEN_H / 2, "WAVE CLEARED", (100, 255, 100), 3.0, 30)
                     self.player.money += 50 * self.level
 
             for b in self.bullets: b.update(dt)
@@ -380,13 +444,13 @@ class Game:
             if self.player.health <= 0:
                 self.game_over = True
                 sx, sy = self.cam.world_to_screen(self.player.wx, self.player.wy)
-                self.vm.add_explosion(sx, sy, (255,0,0))
+                self.vm.add_explosion(sx, sy, (255, 0, 0))
 
             for b in self.bullets:
                 if check_grid_collision(b.wx, b.wy, self.map_grid):
                     b.lifetime = 0
                     sx, sy = self.cam.world_to_screen(b.wx, b.wy)
-                    self.vm.add_particle(sx, sy, (200,200,200))
+                    self.vm.add_particle(sx, sy, (200, 200, 200))
                 for e in self.enemies:
                     if e.uid in b.hit_list: continue
                     dx = e.wx - b.wx
@@ -423,7 +487,7 @@ class Game:
             self.screen.fill(COL_BG)
             draw_floor_grid(self.screen, self.cam, MAP_W, MAP_H, self.level)
             self.vm.draw_floor(self.screen, self.cam)
-            self.vm.draw_ghosts(self.screen, self.cam) # Draw Dash Trails
+            self.vm.draw_ghosts(self.screen, self.cam)  # Draw Dash Trails
 
             self.player.draw_shadow(self.screen, self.cam)
             for e in self.enemies:
@@ -434,6 +498,7 @@ class Game:
             render_list.extend(self.enemies)
             render_list.extend(self.walls)
 
+            # SORT FIX: Correctly sort objects by screen Y (Depth)
             render_list.sort(key=lambda x: self.cam.world_to_screen(x.wx, x.wy)[1])
 
             for entity in render_list:
@@ -449,7 +514,7 @@ class Game:
                 flash_surf = pygame.Surface((SCREEN_W, SCREEN_H))
                 flash_surf.fill((255, 0, 0))
                 flash_surf.set_alpha(int(self.damage_alpha))
-                self.screen.blit(flash_surf, (0,0))
+                self.screen.blit(flash_surf, (0, 0))
                 self.damage_alpha = max(0, self.damage_alpha - 300 * dt)
 
             self.draw_hud()

@@ -249,8 +249,6 @@ class WallBlock(Entity):
         pygame.draw.polygon(surf, (0, 0, 0), top_corners, 1)
 
 
-
-# --- ENEMIES ---
 class Enemy(Entity):
     def __init__(self, wx, wy, level, vm):
         super().__init__(wx, wy)
@@ -356,7 +354,9 @@ class BlockEnemy(Enemy):
         self.max_health = 40 + level * 10
         self.health = self.max_health
         self.speed = 1.5 + (level * 0.1)
-        self.radius = 25
+        # FIX: The radius here was 25 (Giant size), making it collide with walls 25 tiles away.
+        # It should be 0.5 (Normal size) so it fits in the grid.
+        self.radius = 0.5
         self.color = (60, 100, 200)
         self.money_value = 25 + level * 2
         self.debris_type = "robot_parts"
@@ -412,7 +412,8 @@ class HexBoss(Enemy):
         self.max_health = 300 + level * 50
         self.health = self.max_health
         self.speed = 1.2 + (level * 0.05)
-        self.radius = 40
+        # FIX: Radius was 40, which is too big for the grid. Set to 0.8.
+        self.radius = 0.8
         self.color = (150, 50, 200)
         self.money_value = 500
         self.damage_to_player = 30
