@@ -44,16 +44,25 @@ def draw_floor_grid(surf, cam, w, h, level):
     tile_w = TILE_W_BASE * cam.zoom
     tile_h = TILE_H_BASE * cam.zoom
 
+    # Helper to project a point
+    def proj(wx, wy):
+        return cam.world_to_screen(wx, wy)
+
     for y in range(h):
         for x in range(w):
-            sx, sy = cam.world_to_screen(x, y)
-            if sx < -tile_w or sx > SCREEN_W + tile_w or sy < -tile_h or sy > SCREEN_H + tile_h: continue
+            # Optimization: Rough check if tile is on screen
+            sx, sy = proj(x + 0.5, y + 0.5)
+            if sx < -100 or sx > SCREEN_W + 100 or sy < -100 or sy > SCREEN_H + 100:
+                continue
 
-            p_top = [
-                (sx, sy),
-                (sx + tile_w//2, sy + tile_h//2),
-                (sx, sy + tile_h),
-                (sx - tile_w//2, sy + tile_h//2)
-            ]
-            pygame.draw.polygon(surf, col_floor, p_top)
-            pygame.draw.polygon(surf, col_line, p_top, 1)
+            # Calculate the 4 true corners of the floor tile
+            # This ensures the floor matches the walls even when rotated
+            p1 = proj(x, y)
+            p2 = proj(x + 1, y)
+            p3 = proj(x + 1, y + 1)
+            p4 = proj(x, y + 1)
+
+            poly = [p1, p2, p3, p4]
+
+            pygame.draw.polygon(surf, col_floor, poly)
+            pygame.draw.polygon(surf, col_line, poly, 1)

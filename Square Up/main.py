@@ -287,31 +287,41 @@ class Game:
                 self.draw_game_over()
                 continue
 
-            # MOVEMENT INPUT - ADJUSTED FOR ROTATION
             keys = pygame.key.get_pressed()
             if keys[K_LSHIFT]: self.player.attempt_dash()
 
-            raw_vx = 0
-            raw_vy = 0
-            if keys[K_w] or keys[K_UP]: raw_vy = -1
-            if keys[K_s] or keys[K_DOWN]: raw_vy = 1
-            if keys[K_a] or keys[K_LEFT]: raw_vx = -1
-            if keys[K_d] or keys[K_RIGHT]: raw_vx = 1
+            # 1. Get Raw Input (Relative to Screen)
+            input_x = 0
+            input_y = 0
+            if keys[K_w] or keys[K_UP]: input_y = -1  # Up on Screen
+            if keys[K_s] or keys[K_DOWN]: input_y = 1  # Down on Screen
+            if keys[K_a] or keys[K_LEFT]: input_x = -1  # Left on Screen
+            if keys[K_d] or keys[K_RIGHT]: input_x = 1  # Right on Screen
 
-            # FIX: Apply INVERSE Rotation so controls stay relative to the SCREEN
-            # If the camera rotates +Angle, we rotate inputs -Angle to compensate.
-            c = math.cos(self.cam.angle)
-            s = math.sin(self.cam.angle)
+            # 2. Rotate Input Logic (Discrete 90-degree steps)
+            # We map screen inputs to world directions based on camera rotation index.
+            # 0 = Normal, 1 = 90 deg, 2 = 180 deg, 3 = 270 deg
 
-            # Inverse Rotation Formula:
-            # new_x = x * cos + y * sin
-            # new_y = -x * sin + y * cos
-            vx = raw_vx * c + raw_vy * s
-            vy = -raw_vx * s + raw_vy * c
+            vx, vy = 0, 0
 
+            # Determine World Direction based on Rotation Index
+            # This is hard-coded to be perfect for 90-degree turns
+            idx = self.cam.rotation_index % 4
+
+            if idx == 0:  # 0 degrees: W moves -Y (North)
+                vx, vy = input_x, input_y
+            elif idx == 1:  # 90 degrees: W moves +X (East)
+                vx, vy = input_y, -input_x
+            elif idx == 2:  # 180 degrees: W moves +Y (South)
+                vx, vy = -input_x, -input_y
+            elif idx == 3:  # 270 degrees: W moves -X (West)
+                vx, vy = -input_y, input_x
+
+            # 3. Apply Speed
             if vx != 0 or vy != 0:
                 l = math.hypot(vx, vy)
                 vx /= l
+                vy /= l
                 speed = self.player.stats["speed"]
                 if self.player.is_dashing:
                     speed *= 3.0
