@@ -34,6 +34,7 @@ class Tile(pygame.sprite.Sprite):
         super().__init__()
 
         self.image = pygame.Surface((Main.TILE_SIZE, Main.TILE_SIZE))
+        self.rect = self.image.get_rect(topleft=pos)
 
         if type == "X":
             self.image.fill((180,180,180))
@@ -62,9 +63,6 @@ class Tile(pygame.sprite.Sprite):
         else:
             self.kill()
 
-
-
-
 class Main:
 
     TILE_SIZE = 40
@@ -78,6 +76,21 @@ class Main:
         pygame.init()
         self.CLOCK = pygame.time.Clock()
         self.FPS = 60
+
+        self.tiles = pygame.sprite.Group()
+        self.load_level()
+
+    def load_level(self):
+
+        for row_index, row in enumerate(LEVEL_MAP):
+            for col_index, tile_char in enumerate(row):
+
+                if tile_char != " ":
+                    x = col_index * self.TILE_SIZE
+                    y = row_index * self.TILE_SIZE
+
+                    tile = Tile((x,y), tile_char)
+                    self.tiles.add(tile)
 
     def run(self):
 
@@ -93,6 +106,7 @@ class Main:
             self.DISPLAY.fill(self.DISPLAY_COLOR)
 
             pygame.display.set_caption("BreakOut")
+            self.tiles.draw(self.DISPLAY)
             pygame.display.update()
 
 if __name__ == "__main__":
