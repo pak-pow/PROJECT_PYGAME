@@ -1,3 +1,5 @@
+import random
+
 import pygame
 import sys
 
@@ -38,8 +40,57 @@ class Enemy(pygame.sprite.Sprite):
     def __init__(self, player):
         super().__init__()
 
+        self.image = pygame.Surface((30,30))
+        self.image.fill((255,50,50))
+
+        self.rect = self.image.get_rect(center = (100,100))
+
+        self.pos = pygame.math.Vector2(100,100)
+        self.speed = 150
+
+        self.player = player
+        self.state = "WANDER"
+
+        self.aggro_radius = 200
+
+        self.wander = pygame.math.Vector2(100,100)
+        self.wander_time = 0
+
     def update(self, dt):
-        pass
+
+        to_player = self.player.pos - self.pos
+        distance = to_player.length()
+
+        if distance < self.aggro_radius:
+            self.state = "CHASE"
+
+        else:
+            self.state = "WANDER"
+
+        if self.state == "CHASE":
+            self.image.fill((255,0,0))
+
+            if distance > 0:
+                direction = to_player.normalize()
+                self.pos += direction * self.speed * dt
+
+        elif self.state == "WANDER":
+            self.image.fill((100,50,50))
+            self.wander_time += dt
+
+            if self.wander_time > 2.0:
+                self.wander = pygame.math.Vector2(
+                    random.randint(15, Main.DISPLAY_WIDTH - 15),
+                    random.randint(15, Main.DISPLAY_HEIGHT - 15)
+                )
+                self.wander_time = 0
+
+            to_target = self.wander - self.pos
+
+            if to_target.length() > 5:
+                self.pos += to_target.normalize() * (self.speed * 0.5) * dt
+
+        self.rect.center = (round(self.pos.x), round(self.pos.y))
 
 class Main:
 
@@ -60,7 +111,7 @@ class Main:
 
         player = Player()
         enemy = Enemy(player)
-        all_sprites = pygame.sprite.Group(player)
+        all_sprites = pygame.sprite.Group(player, enemy)
 
         while True:
 
