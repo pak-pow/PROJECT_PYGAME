@@ -61,6 +61,19 @@ class Bullet(pygame.sprite.Sprite):
         if self.rect.bottom < 0:
             self.kill()
 
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+
+        self.image = pygame.Surface((35, 25))
+        self.image.fill((255, 0, 0))
+
+        self.rect = self.image.get_rect(topleft=(x, y))
+        self.speed = 80
+        self.direction = 1  # 1 = right, -1 = left
+
+    def update(self, dt):
+        self.rect.x += self.speed * self.direction * dt
 
 class Main:
 
@@ -78,25 +91,70 @@ class Main:
         self.FPS = 60
 
     def run(self):
+        # ================= GROUPS =================
         all_sprites = pygame.sprite.Group()
         bullet_group = pygame.sprite.Group()
+        enemy_group = pygame.sprite.Group()
 
+        # ================= PLAYER =================
         player = Player(all_sprites, bullet_group)
         all_sprites.add(player)
 
+        # ================= ENEMY SETUP =================
+        rows = 4
+        cols = 8
+        start_x = 100
+        start_y = 80
+        gap_x = 60
+        gap_y = 50
+
+        for row in range(rows):
+            for col in range(cols):
+                enemy = Enemy(
+                    start_x + col * gap_x,
+                    start_y + row * gap_y
+                )
+                enemy_group.add(enemy)
+                all_sprites.add(enemy)
+
+        # ================= GAME LOOP =================
         while True:
             dt = self.CLOCK.tick(self.FPS) / 1000
 
+            # -------- EVENTS --------
             for event in pygame.event.get():
                 if event.type == QUIT:
                     pygame.quit()
                     sys.exit()
 
+            # -------- UPDATE --------
             all_sprites.update(dt)
-            self.DISPLAY.fill(self.DISPLAY_COLOR)
 
+            # -------- ENEMY FLEET MOVEMENT --------
+            move_down = False
+            for enemy in enemy_group:
+                if enemy.rect.right >= self.DISPLAY_WIDTH or enemy.rect.left <= 0:
+                    move_down = True
+                    break
+
+            if move_down:
+                for enemy in enemy_group:
+                    enemy.direction *= -1
+                    enemy.rect.y += 25
+
+            # -------- BULLET vs ENEMY --------
+            pygame.sprite.groupcollide(
+                enemy_group,
+                bullet_group,
+                True,  # enemy removed
+                True  # bullet removed
+            )
+
+            # -------- DRAW --------
+            self.DISPLAY.fill(self.DISPLAY_COLOR)
             all_sprites.draw(self.DISPLAY)
             pygame.display.update()
+
 
 if __name__ == "__main__":
     app = Main()
