@@ -1,3 +1,4 @@
+import random
 import pygame
 import sys
 
@@ -18,8 +19,6 @@ class Player(pygame.sprite.Sprite):
         self.acceleration = 3000
         self.max_speed = 300
         self.friction = 0.95
-
-        self.speed = 400
 
     def update(self, dt):
         keys = pygame.key.get_pressed()
@@ -53,6 +52,18 @@ class Player(pygame.sprite.Sprite):
         self.pos.y = max(20, min(Main.DISPLAY_HEIGHT - 20, self.pos.y))
 
         self.rect.center = self.pos
+
+class Items(pygame.sprite.Sprite):
+    def __init__(self, name, color):
+        super().__init__()
+
+        self.name = name
+        self.image = pygame.Surface((20,20))
+        self.image.fill(color)
+
+        self.rect = self.image.get_rect()
+        self.rect.x = random.randint(50,750)
+        self.rect.y = random.randint(50,650)
 
 class Main:
 
