@@ -7,17 +7,35 @@ class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
 
-        self.image = pygame.Surface((30,30))
-        self.image.fill(Main.UI_SKY_BLUE)
+        original_image = pygame.image.load("bird.png").convert_alpha()
+        self.image = pygame.transform.scale(original_image, (40, 40))
 
-        self.rect = self.image.get_rect(center = (Main.DISPLAY_WIDTH // 2, Main.DISPLAY_HEIGHT // 2))
+        # 1. Start centered
+        self.rect = self.image.get_rect(center=(Main.DISPLAY_WIDTH // 2, Main.DISPLAY_HEIGHT // 2))
         self.pos = pygame.Vector2(self.rect.center)
         self.velocity = pygame.Vector2()
 
-        self.on_ground = False
+    def jump(self):
+        # This function is called only when we press the key
+        self.velocity.y = Main.JUMP_STRENGTH
 
     def update(self, dt):
-        pass
+        # 2. Gravity always applies
+        self.velocity.y += Main.GRAVITY * dt
+        self.pos += self.velocity * dt
+
+        # 3. Floor Collision
+        if self.pos.y >= Main.FLOOR_Y:
+            self.pos.y = Main.FLOOR_Y
+            self.velocity.y = 0
+
+        # 4. Ceiling Clamp (Don't let bird fly over the title bar)
+        if self.pos.y < 0:
+            self.pos.y = 0
+            self.velocity.y = 0
+
+        # 5. Consistency: Use center here because you used center in __init__
+        self.rect.center = round(self.pos)
 
 class Main:
 
@@ -40,7 +58,7 @@ class Main:
 
     GRAVITY = 2000
     MOVE_SPEED = 800
-    JUMP_STRENGTH = -800
+    JUMP_STRENGTH = -600
 
     CLOCK = pygame.time.Clock()
     FPS = 60
@@ -65,6 +83,10 @@ class Main:
                 if event.type == QUIT:
                     pygame.quit()
                     sys.exit()
+
+                if event.type == KEYDOWN:
+                    if event.key == K_SPACE:
+                        player.jump()
 
             all_sprite.update(dt)
             self.DISPLAY.fill(self.UI_BLACK)
