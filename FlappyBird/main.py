@@ -58,37 +58,27 @@ class Pipe(pygame.sprite.Sprite):
         if self.rect.right < 0:
             self.kill()
 
+
 class Main:
-
     UI_WHITE = (245, 245, 245)
-    UI_LIGHT_GRAY = (230, 230, 230)
-    UI_GRAY = (180, 180, 180)
-    UI_DARK_GRAY = (100, 100, 100)
     UI_BLACK = (20, 20, 20)
-
-    UI_SKY_BLUE = (93, 173, 226)
-    UI_NAVY_BLUE = (52, 73, 94)
-    UI_PURPLE = (155, 89, 182)
-    UI_GREEN = (46, 204, 113)
-    UI_ORANGE = (243, 156, 18)
-    UI_RED = (231, 76, 60)
 
     DISPLAY_WIDTH = 800
     DISPLAY_HEIGHT = 500
     FLOOR_Y = 490
 
     GRAVITY = 2000
-    MOVE_SPEED = 800
     JUMP_STRENGTH = -600
 
     CLOCK = pygame.time.Clock()
     FPS = 60
 
     def __init__(self):
-
         pygame.init()
         pygame.display.set_caption("Flappy Bird")
         self.DISPLAY = pygame.display.set_mode((self.DISPLAY_WIDTH, self.DISPLAY_HEIGHT))
+
+        self.font = pygame.font.SysFont('Arial', 40, bold=True)
 
         bg_raw = pygame.image.load("background.png").convert()
         self.bg_image = pygame.transform.scale(bg_raw, (self.DISPLAY_WIDTH, self.DISPLAY_HEIGHT))
@@ -96,16 +86,22 @@ class Main:
         self.SPAWN_PIPE_EVENT = pygame.USEREVENT + 1
         pygame.time.set_timer(self.SPAWN_PIPE_EVENT, 1500)
 
-    def run(self):
+        self.game_active = True
 
+    def reset_game(self):
+        self.game_active = True
+        return pygame.sprite.Group(), pygame.sprite.Group(), Player()
+
+    def run(self):
         all_sprite = pygame.sprite.Group()
+        pipes_group = pygame.sprite.Group()
         player = Player()
 
         all_sprite.add(player)
 
         while True:
-
             dt = self.CLOCK.tick(self.FPS) / 1000
+
             for event in pygame.event.get():
                 if event.type == QUIT:
                     pygame.quit()
@@ -113,12 +109,25 @@ class Main:
 
                 if event.type == KEYDOWN:
                     if event.key == K_SPACE:
-                        player.jump()
+                        if self.game_active:
+                            player.jump()
 
-                if event.type == self.SPAWN_PIPE_EVENT:
+                        else:
+                            all_sprite, pipes_group, player = self.reset_game()
+                            all_sprite.add(player)
 
-                    gap_size = 150  # Space between pipes
-                    gap_y = random.randint(gap_size + 50, self.DISPLAY_HEIGHT - gap_size - 50)
+                if event.type == self.SPAWN_PIPE_EVENT and self.game_active:
+                    gap_size = 200
+                    padding = 50
+
+                    min_y = padding + (gap_size // 2)
+                    max_y = self.DISPLAY_HEIGHT - padding - (gap_size // 2)
+
+                    if min_y >= max_y:
+                        gap_y = self.DISPLAY_HEIGHT // 2
+
+                    else:
+                        gap_y = random.randint(min_y, max_y)
 
                     top_pipe_y = gap_y - (gap_size // 2)
                     bottom_pipe_y = gap_y + (gap_size // 2)
@@ -128,13 +137,32 @@ class Main:
                     new_top = Pipe(spawn_x, top_pipe_y, is_top=True)
                     new_bottom = Pipe(spawn_x, bottom_pipe_y, is_top=False)
 
-                    all_sprite.add(new_top)
-                    all_sprite.add(new_bottom)
+                    pipes_group.add(new_top, new_bottom)
+                    all_sprite.add(new_top, new_bottom)
 
-            all_sprite.update(dt)
+            if self.game_active:
+                all_sprite.update(dt)
+
+                if pygame.sprite.spritecollide(player, pipes_group, False):
+                    self.game_active = False
+
+            else:
+                if player.rect.bottom < self.FLOOR_Y:
+                    player.velocity.y += self.GRAVITY * dt
+                    player.pos.y += player.velocity.y * dt
+                    player.rect.center = round(player.pos)
+
+                    if player.pos.y >= self.FLOOR_Y:
+                        player.pos.y = self.FLOOR_Y
+
             self.DISPLAY.blit(self.bg_image, (0, 0))
-
             all_sprite.draw(self.DISPLAY)
+
+            if not self.game_active:
+                text_surf = self.font.render("GAME OVER - Press SPACE", True, self.UI_BLACK)
+                text_rect = text_surf.get_rect(center=(self.DISPLAY_WIDTH / 2, self.DISPLAY_HEIGHT / 2))
+                self.DISPLAY.blit(text_surf, text_rect)
+
             pygame.display.update()
 
 if __name__ == "__main__":
