@@ -56,6 +56,19 @@ class Player(pygame.sprite.Sprite):
 
         self.rect.center = round(self.pos)
 
+class NPC(pygame.sprite.Sprite):
+    def __init__(self, x, y, text):
+        super().__init__()
+
+        self.image = pygame.Surface((40,40))
+        self.image.fill((255,255,0))
+
+        self.rect = self.image.get_rect(center = (x,y))
+        self.pos = pygame.Vector2(self.rect.center)
+
+        self.text = text
+
+
 class Main:
 
     DISPLAY_WIDTH = 800
@@ -71,25 +84,67 @@ class Main:
         self.DISPLAY = pygame.display.set_mode((self.DISPLAY_WIDTH, self.DISPLAY_HEIGHT))
         pygame.display.set_caption("DAY23")
 
+        self.FONT = pygame.font.SysFont("Arial", 24)
+        self.TIP_FONT = pygame.font.SysFont("Arial", 16, bold = True)
+
+    def dialog_box(self, surface, text):
+
+        self.box_rect = pygame.Rect(50,450,700,100)
+        pygame.draw.rect(self.DISPLAY, (0,0,0), self.box_rect)
+        pygame.draw.rect(self.DISPLAY, (255,255,255), self.box_rect, 3)
+
+        self.text_surface = self.FONT.render(text, True, (255,255,255))
+        surface.blit(self.text_surface, (70,470))
+
+        self.hint = self.TIP_FONT.render("[Press E to Close]", True, (150, 150, 150))
+        surface.blit(self.hint, (600, 520))
+
     def run(self):
 
         all_sprite = pygame.sprite.Group()
         player = Player()
+        npc = NPC(600,300, "Greetings, traveler! Welcome to Pygame!")
 
         all_sprite.add(player)
+        all_sprite.add(npc)
+
+        active_dialog = False
+        active_text = ""
 
         while True:
             dt = self.CLOCK.tick(self.FPS) / 1000
+
+            dist = (player.pos - npc.pos).length()
+            can_interact = dist < 70
 
             for event in pygame.event.get():
                 if event.type == QUIT:
                     pygame.quit()
                     sys.exit()
 
-            all_sprite.update(dt)
-            self.DISPLAY.fill(self.DISPLAY_COLOR)
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_e:
 
+                        if active_dialog:
+                            active_dialog = False
+
+                        elif can_interact:
+                            active_dialog = True
+                            active_text = npc.text
+
+            if not active_dialog:
+                all_sprite.update(dt)
+
+            self.DISPLAY.fill(self.DISPLAY_COLOR)
             all_sprite.draw(self.DISPLAY)
+
+            if can_interact and not active_dialog:
+                prompt = self.TIP_FONT.render("[E] TALK", True, (255, 255, 255))
+                self.DISPLAY.blit(prompt, (npc.rect.centerx - 20, npc.rect.top - 20))
+
+            if active_dialog:
+                self.dialog_box(self.DISPLAY, active_text)
+
             pygame.display.update()
 
 if __name__ == "__main__":
