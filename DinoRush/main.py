@@ -79,8 +79,8 @@ class Main:
     FPS = 60
 
     GRAVITY = 2000
-    JUMP_STRENGTH = - 800
-    MOVE_SPEED = 800
+    JUMP_STRENGTH = - 650
+    MOVE_SPEED = 500
     FLOOR_Y = 550
 
     def __init__(self):
@@ -92,9 +92,13 @@ class Main:
     def run(self):
 
         all_sprites = pygame.sprite.Group()
-        player = Player()
+        cacti_group = pygame.sprite.Group()
 
+        player = Player()
         all_sprites.add(player)
+
+        SPAWN_CACTUS = pygame.USEREVENT + 1
+        pygame.time.set_timer(SPAWN_CACTUS, 1500)
 
         while True:
 
@@ -109,7 +113,23 @@ class Main:
                     if event.key == K_SPACE:
                         player.jump()
 
+                if event.type == SPAWN_CACTUS:
+                    group_size = random.randint(1,3)
+
+                    for i in range(group_size):
+
+                        self.offset = i * 40
+                        new_cactus = Cactus(self.offset)
+                        all_sprites.add(new_cactus)
+                        cacti_group.add(new_cactus)
+
             all_sprites.update(dt)
+
+            if pygame.sprite.spritecollide(player, cacti_group, False):
+                print("Game Over!")
+                pygame.quit()
+                sys.exit()
+
             self.DISPLAY.fill(self.DISPLAY_COLOR)
 
             all_sprites.draw(self.DISPLAY)
